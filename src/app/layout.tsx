@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Providers } from "@/components/shared/providers";
@@ -23,12 +24,17 @@ export const metadata: Metadata = {
   },
   description:
     "PitchMate brings cricket players and turf owners together. Register as a player or get your facility ready to list.",
-  icons: { icon: "/logo/mark.svg" },
+  icons: { icon: "/logo/mark.svg", apple: "/logo/icon-192.png" },
+  manifest: "/manifest.webmanifest",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const nonce =
+    process.env.CSP_MODE === "enforce"
+      ? ((await headers()).get("x-csp-nonce") ?? undefined)
+      : undefined;
   return (
     <html
       lang="en"
@@ -43,7 +49,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <Providers>{children}</Providers>
+        <Providers nonce={nonce}>{children}</Providers>
       </body>
     </html>
   );

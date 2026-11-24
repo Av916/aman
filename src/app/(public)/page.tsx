@@ -305,6 +305,26 @@ export default async function HomePage() {
             © {new Date().getUTCFullYear()} PitchMate
           </p>
         </div>
+        <nav
+          aria-label="Policies"
+          className="mt-4 flex flex-wrap gap-4 text-sm"
+        >
+          <Link href="/privacy" className="underline">
+            Privacy
+          </Link>
+          <Link href="/terms" className="underline">
+            Terms
+          </Link>
+          <Link href="/cancellation-policy" className="underline">
+            Cancellations
+          </Link>
+          <Link href="/refund-policy" className="underline">
+            Refunds
+          </Link>
+          <Link href="/contact" className="underline">
+            Contact
+          </Link>
+        </nav>
       </footer>
     </>
   );

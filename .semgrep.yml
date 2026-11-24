@@ -1,0 +1,15 @@
+rules:
+  - id: prisma-unsafe-sql
+    message: Use Prisma parameterized raw queries.
+    languages: [typescript]
+    severity: ERROR
+    pattern-either:
+      - pattern: $CLIENT.$queryRawUnsafe(...)
+      - pattern: $CLIENT.$executeRawUnsafe(...)
+  - id: dynamic-code-evaluation
+    message: Dynamic evaluation is unnecessary in PitchMate application code.
+    languages: [typescript, javascript]
+    severity: ERROR
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)

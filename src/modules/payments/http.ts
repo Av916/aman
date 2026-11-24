@@ -1,3 +1,5 @@
+import { limitAttempt } from "@/modules/auth/rate-limit";
+import { log } from "@/lib/log";
 import { after } from "next/server";
 import { AppError, endpoint, readBody } from "@/lib/api";
 import { getPrisma } from "@/lib/prisma";
@@ -10,6 +12,12 @@ import { persistWebhook, processWebhook } from "./webhook.service";
 
 export const orderPost = roleRoute("CUSTOMER", async (r, who) => {
   const { bookingId, ...input } = await readBody(r, orderInput);
+  await limitAttempt("payment-order", r.headers, `${who}:${bookingId}`, {
+    global: 2000,
+    ip: 50,
+    identity: 5,
+    seconds: 60,
+  });
   return json(
     "Payment order ready.",
     await startPayment(who, bookingId, input),
@@ -95,7 +103,9 @@ export const webhookPost = endpoint(async (r) => {
   );
   after(() =>
     processWebhook(event.id).catch(() => {
-      console.error("PitchMate webhook processing deferred.");
+      log("error", "payment.webhook_deferred", {
+        code: "WEBHOOK_PROCESSING_FAILED",
+      });
     }),
   );
   return json("Webhook received.");

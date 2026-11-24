@@ -101,3 +101,7 @@ Playwright uses a loopback provider fixture and local email delivery. See the Ph
 - [Booking engine](docs/BOOKING_ENGINE.md)
 - [Razorpay setup](docs/PAYMENT_INTEGRATION.md)
 - [Background jobs](docs/BACKGROUND_JOBS.md)
+
+## Phase 5
+
+See the [launch report](docs/PHASE_5.md) for verified checks and external launch gates. Run the db:audit, test:security and smoke scripts for database, security and test deployment checks. The [deployment guide](docs/DEPLOYMENT.md) covers Vercel and the standalone container.

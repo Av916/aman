@@ -61,6 +61,7 @@ export const dashboardSections: Record<
     { id: "bookings", label: "Bookings", icon: CalendarDays },
     { id: "payments", label: "Payments", icon: CreditCard },
     { id: "audit", label: "Audit Logs", icon: ScrollText },
+    { id: "system", label: "System operations", icon: ShieldCheck },
     { id: "refunds", label: "Refunds", icon: Banknote },
     { id: "reviews", label: "Moderation", icon: Bell },
     { id: "coupons", label: "Platform Coupons", icon: Tag },

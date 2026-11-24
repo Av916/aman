@@ -21,7 +21,12 @@ import {
 
 export const registerCustomerPost = endpoint(async (request) => {
   const data = await readBody(request, customerRegistration);
-  await limitAttempt("registration", request.headers, data.email);
+  await limitAttempt("registration", request.headers, data.email, {
+    global: 1000,
+    ip: 10,
+    identity: 5,
+    seconds: 3600,
+  });
   const result = await registerCustomer(data);
   deliverAfterResponse(result.email);
   return success(
@@ -33,7 +38,12 @@ export const registerCustomerPost = endpoint(async (request) => {
 
 export const registerOwnerPost = endpoint(async (request) => {
   const data = await readBody(request, ownerRegistration);
-  await limitAttempt("registration", request.headers, data.email);
+  await limitAttempt("registration", request.headers, data.email, {
+    global: 1000,
+    ip: 10,
+    identity: 5,
+    seconds: 3600,
+  });
   const result = await registerOwner(data);
   deliverAfterResponse(result.email);
   return success(
@@ -45,7 +55,12 @@ export const registerOwnerPost = endpoint(async (request) => {
 
 export const forgotPasswordPost = endpoint(async (request) => {
   const { email } = await readBody(request, forgotSchema);
-  await limitAttempt("forgot-password", request.headers, email);
+  await limitAttempt("forgot-password", request.headers, email, {
+    global: 500,
+    ip: 15,
+    identity: 3,
+    seconds: 3600,
+  });
   deliverAfterResponse(await requestPasswordReset(email));
   return success(
     "If the account can reset its password, you’ll receive a reset link.",

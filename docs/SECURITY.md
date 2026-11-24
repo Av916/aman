@@ -42,3 +42,9 @@ Booking and payment invariants are enforced using database locks, conditional wr
 ## Operations controls
 
 Operational reads use venue-scoped predicates. Mutations enforce same-origin JSON requests, per-account rate limits, resource permission and current staff access. Staff and attendance tokens are random, hashed, expire and are consumed atomically. Customer booking DTOs omit internal notes and operator IDs. CSV exports sanitize spreadsheet expressions, bound rows and write audit events. Finance entries are immutable, payment refund allocations are bounded by PostgreSQL, and external payment and email calls execute after commit.
+
+## Phase 5 controls
+
+Hosted deployments check HTTPS, database TLS, persistent providers, scheduler credentials, and payment mode. PostgreSQL provides distributed limits. Public reads can continue if just the rate-limit write fails. Sensitive operations fail closed. The CSP starts in report-only mode with frame and object restrictions still enforced. Strict rollout uses request nonces and private HTML responses. [Environment setup](ENVIRONMENT_SETUP.md) · [Vercel trusted headers](https://vercel.com/docs/headers/request-headers)
+
+The private data request workflow uses the configured support address. Verify the account holder before acting and document the request and outcome with restricted access. The cleanup job removes expired verification and password reset records, rate-limit counters and idempotency keys. It retains completed or expired staff invitations and attendance tokens for an additional 30 days and prunes job-run history after 30 days. Define retention for guest contact information, bookings, financial records, backups, and observability data with legal and platform operators before launch.

@@ -156,3 +156,7 @@ erDiagram
 ```
 
 Every booking references exactly one registered or venue-scoped guest customer. An accepted payment still references its own booking. The allocation table carries payments across replacement bookings. The operational migrations also add check-in timestamps, an audit actor, source, internal notes, a cancellation snapshot, and a platform fee setting. Duplicate source keys and financial constraints protect retries.
+
+## Phase 5 operations
+
+JobLease stores a per-task lease token, expiry and cursor. JobRun records execution attempts without request or provider payloads. The booking status and end-time index supports attendance completion. The integrity audit uses a read-only repeatable-read transaction.

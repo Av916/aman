@@ -40,6 +40,7 @@ export function dashboardHref(role: UserRole, section: string) {
   }
   if (role === "ADMIN") {
     if (section === "audit") return "/admin/audit-logs";
+    if (section === "system") return "/admin/system";
     if (
       [
         "users",

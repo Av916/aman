@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  ...(process.env.CONTAINER_BUILD === "1" ? { output: "standalone" } : {}),
   images: {
     remotePatterns: process.env.CLOUDINARY_CLOUD_NAME
       ? [
@@ -17,6 +18,15 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source:
+          "/:scope(admin|owner|account|dashboard|bookings|checkout|staff|login|register|register-owner|forgot-password|reset-password|verify-email|resend-verification)/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache" }],
+      },
       {
         source: "/:path*",
         headers: [

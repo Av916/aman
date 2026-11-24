@@ -15,6 +15,8 @@ export function throttleDiscovery(headers: Headers) {
     global: 15_000,
     ip: 240,
     identity: 240,
+    failOpen: true,
+    globalShards: 16,
   });
 }
 

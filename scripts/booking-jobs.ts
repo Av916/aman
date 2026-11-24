@@ -1,24 +1,15 @@
 import "dotenv/config";
 import { getPrisma } from "@/lib/prisma";
-import {
-  expireBookings,
-  processOutbox,
-  reconcilePayments,
-  remindBookings,
-} from "@/modules/jobs/service";
-import { bookingSettings } from "@/modules/bookings/settings";
+import { runJob, isJobName } from "@/modules/system/jobs";
 
 try {
-  const expiration = await expireBookings();
-  const payments = bookingSettings().RAZORPAY_KEY_ID
-    ? await reconcilePayments()
-    : null;
-  console.info({
-    expiration,
-    payments,
-    reminders: await remindBookings(),
-    outbox: await processOutbox(),
-  });
+  const names = process.argv.slice(2);
+  for (const name of names.length
+    ? names
+    : ["expire", "reconcile", "reminders", "outbox"]) {
+    if (!isJobName(name)) throw new Error("Unknown job name.");
+    console.info(JSON.stringify({ job: name, ...(await runJob(name)) }));
+  }
 } finally {
   await getPrisma().$disconnect();
 }

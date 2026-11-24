@@ -35,6 +35,9 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         DATABASE_URL: databaseUrl,
+        APP_ENV: "test",
+        CRON_SECRET: "pitchmate-e2e-cron-secret-test-only",
+        LOG_LEVEL: "error",
         RAZORPAY_MOCK_URL: "http://127.0.0.1:3112",
         RAZORPAY_KEY_ID: "rzp_test_pitchmate_e2e",
         RAZORPAY_KEY_SECRET: "pitchmate-mock-checkout-secret",

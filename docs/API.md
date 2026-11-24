@@ -159,3 +159,13 @@ POST /api/internal/jobs/remind-bookings
 ```
 
 Manual booking and refund-adjustment writes require an `Idempotency-Key` header. Cancellation writes require `confirmed: true`, the reason, and `expectedRefundAmount` in paise from the latest quote. Rescheduling passes pitch and slot IDs to the quote endpoint and supplies the returned fingerprint when confirming.
+
+## Phase 5 operational endpoints
+
+| Endpoint                                              | Access                                                      |
+| ----------------------------------------------------- | ----------------------------------------------------------- |
+| GET /api/health/live and /api/health/ready            | Minimal public health                                       |
+| GET /api/internal/cron/[job]                          | Scheduler bearer authentication                             |
+| GET /api/internal/metrics                             | Internal bearer authentication                              |
+| GET /api/admin/system and /api/admin/system/integrity | Administrator session                                       |
+| POST /api/admin/system/recover                        | Administrator session, same origin, confirmation and reason |

@@ -1,0 +1,85 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      production:
+        type: boolean
+        description: Request production promotion after staging and environment approval
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: pitchmate-release
+  cancel-in-progress: false
+jobs:
+  staging:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - name: Verify CI passed for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list --workflow=ci.yml --commit="$GITHUB_SHA" --event=push --status=success --limit=1 --json conclusion --jq 'length' | grep -qx 1
+      - run: bun install --frozen-lockfile
+      - name: Apply staging migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+        run: |
+          test -n "$DIRECT_DATABASE_URL"
+          bun run db:migrate:deploy
+      - name: Deploy to the staging project and run smoke checks
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          SMOKE_URL: ${{ vars.APP_URL }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          test -n "$VERCEL_PROJECT_ID" && test -n "$VERCEL_ORG_ID" && test -n "$SMOKE_URL"
+          bunx vercel@66.6.0 deploy --prod --yes --token "$VERCEL_TOKEN"
+          bun scripts/smoke.ts
+  production:
+    if: inputs.production
+    needs: staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - run: bun install --frozen-lockfile
+      - name: Apply approved production migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+        run: |
+          test -n "$DIRECT_DATABASE_URL"
+          bun run db:migrate:deploy
+      - name: Deploy to the production project and run smoke checks
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          SMOKE_URL: ${{ vars.APP_URL }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          test -n "$VERCEL_PROJECT_ID" && test -n "$VERCEL_ORG_ID" && test -n "$SMOKE_URL"
+          deployment_url="$(bunx vercel@66.6.0 deploy --prod --skip-domain --yes --token "$VERCEL_TOKEN")"
+          SMOKE_URL="$deployment_url" bun scripts/smoke.ts
+          bunx vercel@66.6.0 promote "$deployment_url" --yes --token "$VERCEL_TOKEN"
+          bun scripts/smoke.ts

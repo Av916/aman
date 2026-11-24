@@ -141,3 +141,7 @@ flowchart LR
   DB --> Outbox["Notification and refund outbox"]
   Outbox --> Worker["Scheduler, Razorpay and email"]
 ```
+
+## Phase 5 operations
+
+Each isolated deployment serves the same Next.js Node application. Authenticated schedulers invoke worker batches guarded by PostgreSQL leases. The runtime pool and direct migration connection have separate responsibilities. OpenTelemetry and structured logs record outcomes, and the read-only integrity audit checks durable inventory and financial state. [Deployment architecture](DEPLOYMENT.md)

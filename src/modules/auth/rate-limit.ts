@@ -1,55 +1,88 @@
-import { createHmac } from "node:crypto";
+import { createHmac, randomInt } from "node:crypto";
 import { isIP } from "node:net";
+import { Prisma } from "@/generated/prisma/client";
 import { AppError } from "@/lib/api";
 import { getEnv } from "@/lib/env";
+import { log } from "@/lib/log";
 import { getPrisma } from "@/lib/prisma";
 
 type RequestHeaders = Headers | Record<string, string | string[] | undefined>;
+type Limits = {
+  global: number;
+  ip: number;
+  identity: number;
+  seconds?: number;
+  failOpen?: boolean;
+  globalShards?: number;
+};
 
 export async function limitAttempt(
   scope: string,
   headers: RequestHeaders,
   identity?: string,
-  thresholds: { global: number; ip: number; identity: number } = {
-    global: 300,
-    ip: 40,
-    identity: 8,
-  },
+  limits: Limits = { global: 300, ip: 40, identity: 8 },
 ) {
   const env = getEnv();
-  const header = env.AUTH_TRUSTED_IP_HEADER;
+  const header =
+    process.env.VERCEL === "1"
+      ? "x-vercel-forwarded-for"
+      : env.AUTH_TRUSTED_IP_HEADER;
   const rawIp =
     header &&
     (headers instanceof Headers ? headers.get(header) : headers[header]);
   const ip = typeof rawIp === "string" && isIP(rawIp) ? rawIp : undefined;
+  const seconds = limits.seconds ?? 900;
+  const shards = limits.globalShards ?? 1;
+  const shard = randomInt(shards);
+  const globalCap =
+    Math.floor(limits.global / shards) + Number(shard < limits.global % shards);
   const keys = [
-    { subject: "global", limit: thresholds.global },
-    ...(ip ? [{ subject: `ip:${ip}`, limit: thresholds.ip }] : []),
+    { subject: shards === 1 ? "global" : `global:${shard}`, limit: globalCap },
+    ...(ip ? [{ subject: `ip:${ip}`, limit: limits.ip }] : []),
     ...(identity
-      ? [{ subject: `identity:${identity}`, limit: thresholds.identity }]
+      ? [{ subject: `identity:${identity}`, limit: limits.identity }]
       : []),
-  ];
-
-  for (const { subject, limit } of keys) {
-    const key = createHmac("sha256", env.AUTH_SECRET)
+  ].map(({ subject, limit }) => ({
+    key: createHmac("sha256", env.AUTH_SECRET)
       .update(`${scope}:${subject}`)
-      .digest("hex");
-    const [bucket] = await getPrisma().$queryRaw<{ count: number }[]>`
-      INSERT INTO "RateLimit" ("key", "count", "expiresAt")
-      VALUES (${key}, 1, CURRENT_TIMESTAMP + interval '15 minutes')
-      ON CONFLICT ("key") DO UPDATE SET
-        "count" = CASE WHEN "RateLimit"."expiresAt" <= CURRENT_TIMESTAMP THEN 1
-                       ELSE LEAST("RateLimit"."count", ${limit}::integer) + 1 END,
-        "expiresAt" = CASE WHEN "RateLimit"."expiresAt" <= CURRENT_TIMESTAMP
-                           THEN EXCLUDED."expiresAt" ELSE "RateLimit"."expiresAt" END
-      RETURNING "count"
+      .digest("hex"),
+    limit,
+  }));
+  const values = Prisma.join(
+    keys.map(({ key, limit }) => Prisma.sql`(${key}::text,${limit}::int)`),
+  );
+  let result;
+  try {
+    [result] = await getPrisma().$queryRaw<{ retry: number | null }[]>`
+      WITH limits(key, maximum) AS (VALUES ${values}),
+      counted AS (
+        INSERT INTO "RateLimit" (key, count, "expiresAt")
+        SELECT key, 1, CURRENT_TIMESTAMP + ${seconds}::int * interval '1 second'
+        FROM limits ORDER BY key
+        ON CONFLICT (key) DO UPDATE SET
+          count = CASE WHEN "RateLimit"."expiresAt" <= CURRENT_TIMESTAMP THEN 1
+                       ELSE LEAST("RateLimit".count, (SELECT maximum FROM limits WHERE key = "RateLimit".key)) + 1 END,
+          "expiresAt" = CASE WHEN "RateLimit"."expiresAt" <= CURRENT_TIMESTAMP THEN EXCLUDED."expiresAt"
+                             ELSE "RateLimit"."expiresAt" END
+        RETURNING key, count, "expiresAt"
+      )
+      SELECT MAX(GREATEST(1, CEIL(EXTRACT(EPOCH FROM (counted."expiresAt" - CURRENT_TIMESTAMP)))::int)) AS retry
+      FROM counted JOIN limits USING (key) WHERE counted.count > limits.maximum
     `;
-    if (bucket.count > limit) {
-      throw new AppError(
-        429,
-        "RATE_LIMITED",
-        "Too many attempts. Please try again in 15 minutes.",
-      );
-    }
+  } catch {
+    log("error", "rate_limit.unavailable", { code: "RATE_STORE_UNAVAILABLE" });
+    if (limits.failOpen) return;
+    throw new AppError(
+      503,
+      "RATE_STORE_UNAVAILABLE",
+      "Please try again shortly.",
+    );
   }
+  if (result?.retry)
+    throw new AppError(
+      429,
+      "RATE_LIMITED",
+      "Too many attempts. Please try again later.",
+      result.retry,
+    );
 }

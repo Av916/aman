@@ -201,4 +201,18 @@ test("a development-provisioned admin can read the admin dashboard", async ({
   await expect(page.getByText("Registered accounts")).toBeVisible();
   await page.getByRole("link", { name: "Audit Logs" }).click();
   await expect(page.getByRole("table")).toContainText("ADMIN_PROVISIONED");
+  await page.getByRole("link", { name: "System operations" }).click();
+  await expect(
+    page.getByRole("heading", { name: "System operations" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Scheduled jobs" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Integrity audit" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Database integrity" }),
+  ).toBeVisible();
+  await expect(page.getByRole("table")).toContainText(
+    "overlapping active bookings",
+  );
 });

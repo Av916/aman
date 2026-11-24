@@ -1,3 +1,4 @@
+import { limitAttempt } from "@/modules/auth/rate-limit";
 import { readBody } from "@/lib/api";
 import { roleRoute, query, json } from "@/modules/venues/http";
 import { publicQuote } from "@/modules/pricing/pricing.service";
@@ -28,6 +29,12 @@ export const quotePost = roleRoute("CUSTOMER", async (r, who) =>
   }),
 );
 export const bookingPost = roleRoute("CUSTOMER", async (r, who) => {
+  await limitAttempt("booking-hold", r.headers, who, {
+    global: 3000,
+    ip: 60,
+    identity: 10,
+    seconds: 60,
+  });
   const key = idempotencyKeySchema.parse(r.headers.get("idempotency-key"));
   const { booking, replay } = await createBooking(
     who,

@@ -1,0 +1,11 @@
+{
+  "framework": "nextjs",
+  "crons": [
+    { "path": "/api/internal/cron/expire", "schedule": "* * * * *" },
+    { "path": "/api/internal/cron/outbox", "schedule": "* * * * *" },
+    { "path": "/api/internal/cron/reconcile", "schedule": "* * * * *" },
+    { "path": "/api/internal/cron/reminders", "schedule": "*/2 * * * *" },
+    { "path": "/api/internal/cron/availability", "schedule": "*/5 * * * *" },
+    { "path": "/api/internal/cron/cleanup", "schedule": "17 * * * *" }
+  ]
+}

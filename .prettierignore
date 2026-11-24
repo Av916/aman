@@ -4,3 +4,8 @@ src/generated
 public
 playwright-report
 test-results
+
+.agents
+.claude
+.windsurf
+coverage

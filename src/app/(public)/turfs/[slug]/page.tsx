@@ -1,3 +1,4 @@
+import { getEnv } from "@/lib/env";
 import { VenueReviews } from "@/components/operations/public-reviews";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -30,10 +31,33 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const venue = publicSlug.safeParse(slug).success
+    ? await publicVenueView(slug)
+    : null;
+  if (!venue) return { title: "Cricket turf", robots: { index: false } };
+  const url = new URL(`/turfs/${venue.slug}`, getEnv().APP_URL).href;
+  const description =
+    venue.description.trim().slice(0, 155) ||
+    `Check pitch availability at ${venue.name} in ${venue.city}.`;
+  const image = venue.images[0]?.imageUrl;
   return {
-    title: publicSlug.safeParse(slug).success
-      ? ((await publicVenueView(slug))?.name ?? "Cricket turf")
-      : "Cricket turf",
+    metadataBase: new URL(getEnv().APP_URL),
+    title: venue.name,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: venue.name,
+      description,
+      url,
+      type: "website",
+      images: image ? [image] : [new URL("/logo/icon-512.png", url).href],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: venue.name,
+      description,
+      images: image ? [image] : [new URL("/logo/icon-512.png", url).href],
+    },
   };
 }
 
@@ -101,6 +125,25 @@ export default async function VenuePage({
   return (
     <>
       <PublicNav />
+      <script
+        type="application/ld+json"
+        nonce={(await headers()).get("x-csp-nonce") ?? undefined}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SportsActivityLocation",
+            name: venue.name,
+            url: new URL(`/turfs/${venue.slug}`, getEnv().APP_URL).href,
+            address: {
+              "@type": "PostalAddress",
+              streetAddress: venue.address,
+              addressLocality: venue.city,
+              addressRegion: venue.state,
+              addressCountry: "IN",
+            },
+          }).replaceAll("<", "\\u003c"),
+        }}
+      />
       <main
         id="main-content"
         className="mx-auto max-w-[80rem] px-4 py-8 sm:px-8"

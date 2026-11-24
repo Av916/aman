@@ -1,3 +1,5 @@
+import { recordHttp } from "./metrics";
+import { log, requestScope, routeLabel } from "./log";
 import { z } from "zod";
 import { getEnv } from "./env";
 
@@ -6,6 +8,7 @@ export class AppError extends Error {
     public status: number,
     public code: string,
     message: string,
+    public retryAfter?: number,
   ) {
     super(message);
   }
@@ -84,7 +87,7 @@ export function success(message: string, data: object = {}, status = 200) {
 export function endpoint<Args extends unknown[]>(
   handler: (request: Request, ...args: Args) => Promise<Response>,
 ) {
-  return async (request: Request, ...args: Args): Promise<Response> => {
+  async function handle(request: Request, ...args: Args): Promise<Response> {
     try {
       return await handler(request, ...args);
     } catch (error) {
@@ -103,6 +106,10 @@ export function endpoint<Args extends unknown[]>(
         );
       }
       if (error instanceof AppError) {
+        log(error.status >= 500 ? "error" : "debug", "http.operation_error", {
+          code: error.code,
+          status: error.status,
+        });
         return Response.json(
           {
             success: false,
@@ -113,7 +120,7 @@ export function endpoint<Args extends unknown[]>(
             status: error.status,
             headers:
               error.status === 429
-                ? { ...headers, "Retry-After": "900" }
+                ? { ...headers, "Retry-After": String(error.retryAfter ?? 900) }
                 : headers,
           },
         );
@@ -128,10 +135,9 @@ export function endpoint<Args extends unknown[]>(
           { status: 409, headers },
         );
       }
-      console.error("PitchMate API request failed", {
-        type: error instanceof Error ? error.name : "Unknown",
+      log("error", "http.unhandled", {
+        code: "INTERNAL_ERROR",
         method: request.method,
-        path: new URL(request.url).pathname,
       });
       return Response.json(
         {
@@ -142,5 +148,30 @@ export function endpoint<Args extends unknown[]>(
         { status: 500, headers },
       );
     }
-  };
+  }
+  return (request: Request, ...args: Args) =>
+    requestScope(async (requestId) => {
+      const start = performance.now();
+      const response = await handle(request, ...args);
+      const headers = new Headers(response.headers);
+      headers.set("X-Request-Id", requestId);
+      const method = request.method;
+      const route = routeLabel(new URL(request.url).pathname);
+      const elapsed = Math.round(performance.now() - start);
+      recordHttp(route, method, response.status, elapsed);
+      log(
+        response.status >= 500
+          ? "error"
+          : response.status >= 400
+            ? "warn"
+            : "info",
+        "http.request",
+        { route, method, status: response.status, durationMs: elapsed },
+      );
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    });
 }

@@ -524,6 +524,7 @@ model Booking {
   @@unique([id, pitchId], map: "Booking_id_pitchId_inventory_key")
   @@index([customerId, status, startAt])
   @@index([status, holdExpiresAt])
+  @@index([status, endAt])
   @@index([venueId, startAt])
   @@index([pitchId, startAt])
 }
@@ -1032,4 +1033,24 @@ model PlatformSetting {
   key       String   @id
   amount    Int
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model JobLease {
+  name      String   @id
+  token     String   @db.Uuid
+  expiresAt DateTime @db.Timestamptz(3)
+  cursor    String?  @db.Uuid
+}
+
+model JobRun {
+  id         String    @id @db.Uuid
+  name       String
+  status     String
+  startedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  finishedAt DateTime? @db.Timestamptz(3)
+  errorCode  String?
+  result     Json?
+
+  @@index([name, startedAt])
+  @@index([startedAt])
 }

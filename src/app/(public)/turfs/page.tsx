@@ -1,3 +1,4 @@
+import { getEnv } from "@/lib/env";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { List, Map } from "lucide-react";
@@ -17,7 +18,16 @@ import { AppError } from "@/lib/api";
 import { currentUser } from "@/lib/auth";
 import { savedVenueIds } from "@/modules/favorites/service";
 
-export const metadata = { title: "Explore cricket turfs" };
+export function generateMetadata() {
+  const url = new URL("/turfs", getEnv().APP_URL).href;
+  return {
+    title: "Explore cricket turfs",
+    description:
+      "Explore published cricket venues and check live pitch availability.",
+    alternates: { canonical: url },
+    openGraph: { url },
+  };
+}
 
 export default async function TurfSearch({
   searchParams,

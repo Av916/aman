@@ -84,11 +84,26 @@ export function CheckoutForm({
     "idle" | "order" | "verification" | "releasing"
   >("idle");
   const [error, setError] = useState("");
+  const [offline, setOffline] = useState(false);
   const [release, setRelease] = useState(false);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    const wentOffline = () => setOffline(true);
+    const reconnected = () => {
+      setOffline(false);
+      router.refresh();
+    };
+    window.addEventListener("offline", wentOffline);
+    window.addEventListener("online", reconnected);
+    if (!navigator.onLine) wentOffline();
+    return () => {
+      window.removeEventListener("offline", wentOffline);
+      window.removeEventListener("online", reconnected);
+    };
+  }, [router]);
   const remaining = Math.max(
     0,
     Math.ceil((+new Date(booking.holdExpiresAt) - now) / 1000),
@@ -104,6 +119,7 @@ export function CheckoutForm({
 
   async function pay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (offline) return;
     const form = new FormData(event.currentTarget);
     const saveOnly =
       (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") ===
@@ -277,6 +293,15 @@ export function CheckoutForm({
             Your hold ended. Visit your booking to see its current status.
           </p>
         )}
+        {offline && (
+          <p
+            role="status"
+            className="rounded-lg border border-border bg-surface p-3 text-sm"
+          >
+            You’re offline. Reconnect to check payment status before trying
+            again.
+          </p>
+        )}
         {error && (
           <p
             role="alert"
@@ -288,7 +313,7 @@ export function CheckoutForm({
         <div className="sticky bottom-0 z-10 grid gap-2 border-t border-border bg-surface py-3 lg:static">
           <Button
             type="submit"
-            disabled={timedOut || processing || !ready}
+            disabled={offline || timedOut || processing || !ready}
             size="lg"
           >
             <LockKeyhole size={17} aria-hidden />
@@ -302,7 +327,7 @@ export function CheckoutForm({
             type="submit"
             value="save"
             variant="outline"
-            disabled={timedOut || processing}
+            disabled={offline || timedOut || processing}
           >
             Save contact details
           </Button>
