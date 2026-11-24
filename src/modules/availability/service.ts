@@ -125,7 +125,11 @@ export async function refreshPitch(
   };
 }
 
-export async function pitchAvailability(pitchId: string, date?: string) {
+export async function pitchAvailability(
+  pitchId: string,
+  date?: string,
+  includePast = false,
+) {
   const pitch = await getPrisma().pitch.findFirst({
     where: { id: pitchId, isActive: true, venue: publicVenueWhere },
     select: { venue: { select: { timezone: true } } },
@@ -144,14 +148,16 @@ export async function pitchAvailability(pitchId: string, date?: string) {
             pitchId,
             pitch: { isActive: true, venue: publicVenueWhere },
             startAt: {
-              gte: new Date(Math.max(+now, +atVenueTime(day, 0, timezone))),
+              gte: includePast
+                ? atVenueTime(day, 0, timezone)
+                : new Date(Math.max(+now, +atVenueTime(day, 0, timezone))),
               lt: atVenueTime(shiftDay(day, 1), 0, timezone),
             },
           },
           orderBy: { startAt: "asc" },
           select: slotFields,
         });
-  return { date: day, timezone, today, maxDate, slots };
+  return { date: day, timezone, today, maxDate, checkedAt: +now, slots };
 }
 
 export async function extendAvailability(cursor?: string, size = 10) {

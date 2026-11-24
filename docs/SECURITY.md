@@ -32,3 +32,13 @@ The local mail adapter is for local development and testing. Resend delivery is 
 - Image uploads are origin-checked, rate-limited and bounded before decoding. The server validates decoded format, pixels, animation and MIME, strips metadata, and converts files to WebP. Cloudinary credentials stay server-side. Image references and cleanup changes commit transactionally.
 - Public search, public availability, management writes, favorites and moderation use database-backed rate limits. Consent precedes browser geolocation. The availability job uses a distinct bearer secret and supports resumable batches.
 - Schedule, price, and inventory mutations acquire venue and pitch locks in that order. Held and booked rows remain protected, and PostgreSQL rejects overlapping UTC ranges.
+
+## Phase 3
+
+Booking, payment, notification, receipt and calendar routes scope data to the authenticated customer. Owner add-on actions reuse verified-owner and venue ownership checks. Checkout never consumes card numbers, CVV or UPI credentials. Checkout and webhook signatures use different server secrets. Mutation origin checking remains enabled on browser endpoints. Internal workers authenticate with a separate bearer secret.
+
+Booking and payment invariants are enforced using database locks, conditional writes and uniqueness constraints. The booking quote is recomputed before any hold. A capture with the wrong amount or currency is recorded for compensation. Webhook records store relevant provider identifiers only. Logs and user-facing errors omit provider payloads and credentials.
+
+## Operations controls
+
+Operational reads use venue-scoped predicates. Mutations enforce same-origin JSON requests, per-account rate limits, resource permission and current staff access. Staff and attendance tokens are random, hashed, expire and are consumed atomically. Customer booking DTOs omit internal notes and operator IDs. CSV exports sanitize spreadsheet expressions, bound rows and write audit events. Finance entries are immutable, payment refund allocations are bounded by PostgreSQL, and external payment and email calls execute after commit.

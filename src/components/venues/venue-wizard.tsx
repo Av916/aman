@@ -21,6 +21,8 @@ import {
 } from "./management-controls";
 import { venueRequest } from "./api-client";
 import { human, money } from "./format";
+import { AddonEditor } from "@/components/bookings/addon-editor";
+import type { venueAddons } from "@/modules/addons/service";
 import { PitchForm, WeeklyForm } from "./pitch-editor";
 import type { ManagedVenue } from "@/modules/venues/venue.types";
 
@@ -455,11 +457,13 @@ export function VenueWizard({
   step,
   options = [],
   maxImages = 10,
+  addons = [],
 }: {
   venue?: ManagedVenue;
   step: number;
   options?: { id: string; name: string }[];
   maxImages?: number;
+  addons?: Awaited<ReturnType<typeof venueAddons>>;
 }) {
   const router = useRouter();
   const { run, busy, error } = useManagementRequest();
@@ -597,7 +601,10 @@ export function VenueWizard({
         ) : step === 2 ? (
           <Location venue={venue} />
         ) : step === 3 ? (
-          <Facilities venue={venue} options={options} />
+          <>
+            <Facilities venue={venue} options={options} />
+            <AddonEditor venueId={venue.id} addons={addons} />
+          </>
         ) : step === 4 ? (
           <Media venue={venue} maximum={maxImages} />
         ) : step === 5 ? (

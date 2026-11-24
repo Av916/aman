@@ -1,3 +1,5 @@
+import { AdminAccountAction } from "@/components/operations/admin-actions";
+import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/states";
 import {
@@ -8,7 +10,7 @@ import {
 
 type TableData = {
   columns: string[];
-  rows: { key: string; values: string[] }[];
+  rows: { key: string; values: ReactNode[] }[];
 };
 
 function RecentTable({ columns, rows }: TableData) {
@@ -57,10 +59,24 @@ export async function AdminData({
     const records = await listRecentUsers();
     return (
       <RecentTable
-        columns={["Name", "Email", "Role", "Status"]}
+        columns={["Name", "Email", "Role", "Status", "Actions"]}
         rows={records.map((user) => ({
           key: user.id,
-          values: [user.name, user.email, user.role, user.status],
+          values: [
+            user.name,
+            user.email,
+            user.role,
+            user.status,
+            user.role === "ADMIN" ? (
+              "—"
+            ) : (
+              <AdminAccountAction
+                mode="users"
+                id={user.id}
+                current={user.status}
+              />
+            ),
+          ],
         }))}
       />
     );
@@ -69,13 +85,19 @@ export async function AdminData({
     const records = await listRecentOwners();
     return (
       <RecentTable
-        columns={["Business", "Account", "Verification"]}
+        columns={["Business", "Account", "Verification", "Actions"]}
         rows={records.map((owner) => ({
           key: owner.id,
           values: [
             owner.businessName,
             owner.user.email,
             owner.verificationStatus,
+            <AdminAccountAction
+              key={owner.id}
+              mode="owners"
+              id={owner.id}
+              current={owner.verificationStatus}
+            />,
           ],
         }))}
       />

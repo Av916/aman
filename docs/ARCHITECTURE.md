@@ -103,3 +103,41 @@ The new domains live under `src/modules/{venues,pitches,amenities,media,schedule
 The main entry points are `src/app/(public)/turfs`, `src/app/owner/venues`, `src/app/admin/venues`, `src/app/(customer)/dashboard/favorites`, and their corresponding API routes. Shared marketplace UI is in `src/components/venues`. The public pages use server-side queries with URL-driven filters. Leaflet and management forms are interactive client components.
 
 Venue descriptions, amenity assignments, and galleries use the public data cache. Every detail lookup first checks publication in PostgreSQL and includes the published row's revision in the cache key. Material edits and moderation change the revision or remove publication. Pitch schedules, prices, and slot availability use fresh database reads.
+
+## Phase 3
+
+```mermaid
+flowchart LR
+  Customer["Customer booking UI"] --> API["Authenticated Next.js routes"]
+  API --> Quote["Pricing and booking services"]
+  Quote --> Inventory["PostgreSQL inventory transaction"]
+  API --> Payments["Payment service"]
+  Payments --> Razorpay["Razorpay"]
+  Razorpay --> Webhook["Signed webhook inbox"]
+  Webhook --> Payments
+  Payments --> Inventory
+  Inventory --> Outbox["Transactional outbox"]
+  Scheduler["Scheduler"] --> Worker["Expiry and reconciliation workers"]
+  Worker --> Outbox
+  Outbox --> Delivery["Receipts, Resend and refunds"]
+```
+
+Booking locks follow the existing venue and pitch order. A separate customer row lock serializes hold limits. Razorpay and Resend requests occur above the transaction boundary. Durable inbox and outbox records cover retries across app instances.
+
+## Phase 4
+
+```mermaid
+flowchart LR
+  Ops["Owner, staff and admin dashboards"] --> Routes["Operational route handlers"]
+  Player["Customer booking details"] --> Routes
+  Routes --> Scope["Session, venue assignment and permission"]
+  Scope --> Booking["Shared booking, quote and inventory services"]
+  Booking --> DB[("PostgreSQL")]
+  Booking --> Finance["Refund and payment allocation"]
+  Finance --> DB
+  DB --> Ledger["Append-only financial events"]
+  Scope --> Reports["Analytics and CSV"]
+  Ledger --> Reports
+  DB --> Outbox["Notification and refund outbox"]
+  Outbox --> Worker["Scheduler, Razorpay and email"]
+```

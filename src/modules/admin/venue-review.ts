@@ -1,3 +1,4 @@
+import { queueOperationalEmail } from "@/modules/notifications/service";
 import { getPrisma } from "@/lib/prisma";
 import { Prisma, type VenueStatus } from "@/generated/prisma/client";
 import {
@@ -108,6 +109,22 @@ export async function moderateVenue(
       to: updated.status,
       ...(reason ? { reason } : {}),
     });
+    if (operation === "approve" || operation === "reject") {
+      const owner = await tx.user.findUniqueOrThrow({
+        where: { id: venue.ownerId },
+        select: { email: true },
+      });
+      await queueOperationalEmail(
+        tx,
+        venue.id,
+        `venue-review:${venue.id}:${updated.updatedAt.getTime()}`,
+        owner.email,
+        operation === "approve" ? "Venue approved" : "Venue review update",
+        operation === "approve"
+          ? `${venue.name} is approved and can now be published.`
+          : `${venue.name} needs changes. ${reason ?? ""}`,
+      );
+    }
     return updated;
   });
 }

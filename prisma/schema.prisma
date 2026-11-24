@@ -48,6 +48,12 @@ model User {
   venues             Venue[]
   favorites          Favorite[]
 
+  staffMemberships   StaffMember[]       @relation("StaffUser")
+  staffTeam          StaffMember[]       @relation("StaffOwner")
+  bookings           Booking[]
+  notifications      Notification[]
+  idempotencyRecords IdempotencyRecord[]
+
   @@index([role, status])
 }
 
@@ -209,6 +215,14 @@ model Venue {
   amenities       VenueAmenity[]
   favorites       Favorite[]
 
+  bookings             Booking[]
+  addons               Addon[]
+  guests               GuestCustomer[]
+  cancellationPolicies CancellationPolicy[]
+  staffAssignments     StaffVenueAssignment[]
+
+  coupons Coupon[]
+
   @@index([ownerId, status, createdAt])
   @@index([status, city, publishedAt])
 }
@@ -236,6 +250,8 @@ model Pitch {
   exceptions            ScheduleException[]
   pricingRules          PricingRule[]
   slots                 Slot[]
+
+  bookings Booking[]
 
   @@unique([venueId, name])
   @@index([venueId, isActive, pitchType])
@@ -339,11 +355,17 @@ model Slot {
   hourlyPrice   Int
   currency      String     @default("INR") @db.Char(3)
   holdExpiresAt DateTime?  @db.Timestamptz(3)
+  blockReason   String?
   createdAt     DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
   pitch         Pitch      @relation(fields: [pitchId], references: [id], onDelete: Restrict)
 
+  activeBookingId String?       @db.Uuid
+  activeBooking   Booking?      @relation(fields: [activeBookingId, pitchId], references: [id, pitchId], onDelete: NoAction, onUpdate: NoAction, map: "Slot_active_booking_pitch_fkey")
+  bookingItems    BookingItem[]
+
   @@unique([pitchId, startAt])
+  @@index([activeBookingId])
   @@index([pitchId, status, startAt])
 }
 
@@ -357,4 +379,657 @@ model Favorite {
 
   @@unique([userId, venueId])
   @@index([venueId])
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  EXPIRED
+  CANCELLED
+  COMPLETED
+  CHECKED_IN
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  OFFLINE
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUND_PENDING
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum WorkStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum AddonPricingType {
+  PER_BOOKING
+  PER_HOUR
+  PER_QUANTITY
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  PAYMENT_FAILED
+  RESERVATION_EXPIRED
+  REFUND_INITIATED
+  REFUND_PROCESSED
+  BOOKING_CANCELLED
+  CHECKED_IN
+  BOOKING_REMINDER
+  REVIEW_RESPONSE
+  REFUND_FAILED
+  RESCHEDULED
+}
+
+enum OutboxType {
+  BOOKING_EMAIL
+  BOOKING_RECEIPT
+  COMPENSATING_REFUND
+  OPERATIONAL_EMAIL
+}
+
+model Booking {
+  id                         String              @id @default(uuid()) @db.Uuid
+  bookingNumber              String              @unique
+  customerId                 String?             @db.Uuid
+  guestCustomerId            String?             @db.Uuid
+  bookingSource              BookingSource       @default(ONLINE)
+  createdById                String?             @db.Uuid
+  cancellationPolicySnapshot Json?
+  checkedInAt                DateTime?           @db.Timestamptz(3)
+  checkedInById              String?             @db.Uuid
+  completedAt                DateTime?           @db.Timestamptz(3)
+  noShowAt                   DateTime?           @db.Timestamptz(3)
+  internalNotes              String?
+  rescheduledFromId          String?             @db.Uuid
+  venueId                    String              @db.Uuid
+  pitchId                    String              @db.Uuid
+  venueName                  String
+  venueAddress               String
+  pitchName                  String
+  timezone                   String
+  startAt                    DateTime            @db.Timestamptz(3)
+  endAt                      DateTime            @db.Timestamptz(3)
+  durationMinutes            Int
+  status                     BookingStatus       @default(PENDING_PAYMENT)
+  currency                   String              @default("INR") @db.Char(3)
+  subtotal                   Int
+  addonTotal                 Int
+  discountAmount             Int                 @default(0)
+  platformFee                Int
+  taxAmount                  Int
+  totalAmount                Int
+  customerName               String
+  customerEmail              String?
+  customerPhone              String?
+  playerCount                Int
+  customerNotes              String?
+  termsAcceptedAt            DateTime?           @db.Timestamptz(3)
+  holdExpiresAt              DateTime            @db.Timestamptz(3)
+  confirmedAt                DateTime?           @db.Timestamptz(3)
+  cancelledAt                DateTime?           @db.Timestamptz(3)
+  cancellationReason         String?
+  settlementDue              Int?
+  rescheduleSource           RescheduleRequest?  @relation("RescheduleSource")
+  rescheduleTarget           RescheduleRequest?  @relation("RescheduleTarget")
+  allocations                PaymentAllocation[]
+  review                     Review?
+  couponRedemption           CouponRedemption?
+  confirmedPaymentId         String?             @unique @db.Uuid
+  createdAt                  DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime            @updatedAt @db.Timestamptz(3)
+
+  customer         User?                @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  guest            GuestCustomer?       @relation(fields: [guestCustomerId, venueId], references: [id, venueId], onDelete: Restrict)
+  cancellation     CancellationRequest?
+  checkInTokens    CheckInToken[]
+  rescheduledFrom  Booking?             @relation("BookingHistory", fields: [rescheduledFromId], references: [id], onDelete: Restrict)
+  replacements     Booking[]            @relation("BookingHistory")
+  venue            Venue                @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  pitch            Pitch                @relation(fields: [pitchId], references: [id], onDelete: Restrict)
+  confirmedPayment Payment?             @relation("AcceptedPayment", fields: [confirmedPaymentId, id], references: [id, bookingId], onDelete: NoAction, onUpdate: NoAction, map: "Booking_accepted_payment_same_booking_fkey")
+  payments         Payment[]            @relation("BookingPayments")
+  order            PaymentOrder?
+  items            BookingItem[]
+  addons           BookingAddon[]
+  activeSlots      Slot[]
+  refunds          Refund[]
+  notifications    Notification[]
+  receipt          BookingReceipt?
+
+  financialEntries FinancialTransaction[]
+
+  @@unique([id, venueId])
+  @@unique([id, pitchId], map: "Booking_id_pitchId_inventory_key")
+  @@index([customerId, status, startAt])
+  @@index([status, holdExpiresAt])
+  @@index([venueId, startAt])
+  @@index([pitchId, startAt])
+}
+
+model BookingItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  bookingId       String   @db.Uuid
+  slotId          String?  @db.Uuid
+  originalSlotId  String   @db.Uuid
+  startAt         DateTime @db.Timestamptz(3)
+  endAt           DateTime @db.Timestamptz(3)
+  durationMinutes Int
+  unitPrice       Int
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  slot            Slot?    @relation(fields: [slotId], references: [id], onDelete: SetNull)
+
+  @@unique([bookingId, originalSlotId])
+  @@index([slotId])
+}
+
+model PaymentOrder {
+  id              String          @id @default(uuid()) @db.Uuid
+  bookingId       String          @unique @db.Uuid
+  provider        PaymentProvider @default(RAZORPAY)
+  providerOrderId String?         @unique
+  providerReceipt String          @unique
+  amount          Int
+  currency        String          @db.Char(3)
+  status          PaymentStatus   @default(CREATED)
+  nextCheckAt     DateTime        @default(now()) @db.Timestamptz(3)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+  booking         Booking         @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  payments        Payment[]
+
+  @@index([nextCheckAt])
+}
+
+model Payment {
+  id                String          @id @default(uuid()) @db.Uuid
+  bookingId         String          @db.Uuid
+  orderId           String?         @db.Uuid
+  provider          PaymentProvider @default(RAZORPAY)
+  providerPaymentId String          @unique
+  amount            Int
+  currency          String          @db.Char(3)
+  status            PaymentStatus
+  paymentMethod     String?
+  failureCode       String?
+  failureReason     String?
+  paidAt            DateTime?       @db.Timestamptz(3)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+  booking           Booking         @relation("BookingPayments", fields: [bookingId], references: [id], onDelete: Restrict)
+  order             PaymentOrder?   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  acceptedBookings  Booking[]       @relation("AcceptedPayment")
+  refunds           Refund[]
+
+  allocations      PaymentAllocation[]
+  financialEntries FinancialTransaction[]
+
+  @@unique([id, bookingId], map: "Payment_id_bookingId_acceptance_key")
+  @@index([bookingId, createdAt])
+  @@index([orderId])
+}
+
+model PaymentWebhookEvent {
+  id               String          @id @default(uuid()) @db.Uuid
+  provider         PaymentProvider @default(RAZORPAY)
+  providerEventId  String
+  eventType        String
+  processingStatus WorkStatus      @default(PENDING)
+  payload          Json
+  attemptCount     Int             @default(0)
+  lastError        String?
+  nextAttemptAt    DateTime        @default(now()) @db.Timestamptz(3)
+  processedAt      DateTime?       @db.Timestamptz(3)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@unique([provider, providerEventId])
+  @@index([processingStatus, nextAttemptAt])
+}
+
+model Refund {
+  id               String       @id @default(uuid()) @db.Uuid
+  paymentId        String       @db.Uuid
+  sourceKey        String?      @unique
+  bookingId        String       @db.Uuid
+  providerRefundId String?      @unique
+  amount           Int
+  reason           String
+  status           RefundStatus @default(PENDING)
+  processedAt      DateTime?    @db.Timestamptz(3)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
+  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  booking          Booking      @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  financialEntries FinancialTransaction[]
+
+  @@index([bookingId])
+  @@index([paymentId])
+  @@index([status, updatedAt])
+}
+
+model Addon {
+  id          String           @id @default(uuid()) @db.Uuid
+  venueId     String           @db.Uuid
+  name        String
+  description String           @default("")
+  price       Int
+  pricingType AddonPricingType
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  venue       Venue            @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  bookings    BookingAddon[]
+
+  @@unique([venueId, name])
+  @@index([venueId, isActive])
+}
+
+model BookingAddon {
+  id           String           @id @default(uuid()) @db.Uuid
+  bookingId    String           @db.Uuid
+  addonId      String           @db.Uuid
+  nameSnapshot String
+  quantity     Int
+  unitPrice    Int
+  totalPrice   Int
+  pricingType  AddonPricingType
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  booking      Booking          @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  addon        Addon            @relation(fields: [addonId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, addonId])
+  @@index([addonId])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  bookingId String           @db.Uuid
+  type      NotificationType
+  dedupeKey String           @unique
+  title     String
+  message   String
+  readAt    DateTime?        @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking   Booking          @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@index([bookingId])
+}
+
+model OutboxEvent {
+  id            String     @id @default(uuid()) @db.Uuid
+  eventType     OutboxType
+  aggregateId   String     @db.Uuid
+  dedupeKey     String     @unique
+  payload       Json
+  status        WorkStatus @default(PENDING)
+  attempts      Int        @default(0)
+  nextAttemptAt DateTime   @default(now()) @db.Timestamptz(3)
+  processedAt   DateTime?  @db.Timestamptz(3)
+  lastError     String?
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@index([status, nextAttemptAt])
+}
+
+model IdempotencyRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  operation      String
+  idempotencyKey String
+  requestHash    String
+  resourceId     String   @db.Uuid
+  expiresAt      DateTime @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, operation, idempotencyKey])
+  @@index([expiresAt])
+}
+
+model BookingReceipt {
+  bookingId String   @id @db.Uuid
+  reference String   @unique
+  pdf       Bytes
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+}
+
+enum BookingSource {
+  ONLINE
+  WALK_IN
+  PHONE
+  OWNER_MANUAL
+  ADMIN_MANUAL
+}
+
+enum StaffRole {
+  MANAGER
+  RECEPTIONIST
+  ACCOUNTANT
+  GROUND_STAFF
+}
+
+enum StaffStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+model GuestCustomer {
+  id        String    @id @default(uuid()) @db.Uuid
+  venueId   String    @db.Uuid
+  name      String
+  phone     String
+  email     String?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  venue     Venue     @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  bookings  Booking[]
+
+  @@unique([id, venueId])
+  @@index([venueId, phone])
+}
+
+model StaffMember {
+  id          String                 @id @default(uuid()) @db.Uuid
+  ownerId     String                 @db.Uuid
+  userId      String                 @db.Uuid
+  invitedById String                 @db.Uuid
+  role        StaffRole
+  status      StaffStatus            @default(ACTIVE)
+  joinedAt    DateTime               @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime               @updatedAt @db.Timestamptz(3)
+  owner       User                   @relation("StaffOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  user        User                   @relation("StaffUser", fields: [userId], references: [id], onDelete: Restrict)
+  assignments StaffVenueAssignment[]
+
+  @@unique([ownerId, userId])
+  @@index([userId, status])
+}
+
+model StaffVenueAssignment {
+  id            String      @id @default(uuid()) @db.Uuid
+  staffMemberId String      @db.Uuid
+  venueId       String      @db.Uuid
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  staffMember   StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+  venue         Venue       @relation(fields: [venueId], references: [id], onDelete: Restrict)
+
+  @@unique([staffMemberId, venueId])
+  @@index([venueId])
+}
+
+model StaffInvitation {
+  id         String    @id @default(uuid()) @db.Uuid
+  ownerId    String    @db.Uuid
+  email      String
+  role       StaffRole
+  tokenHash  String    @unique
+  venueIds   String[]  @db.Uuid
+  expiresAt  DateTime  @db.Timestamptz(3)
+  acceptedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([ownerId, createdAt])
+}
+
+model CancellationPolicy {
+  id          String                   @id @default(uuid()) @db.Uuid
+  venueId     String                   @db.Uuid
+  name        String
+  description String
+  version     Int
+  isActive    Boolean                  @default(false)
+  createdAt   DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime                 @updatedAt @db.Timestamptz(3)
+  venue       Venue                    @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  rules       CancellationPolicyRule[]
+
+  @@unique([venueId, version])
+}
+
+model CancellationPolicyRule {
+  id                        String             @id @default(uuid()) @db.Uuid
+  policyId                  String             @db.Uuid
+  minimumHoursBeforeBooking Int
+  refundPercentage          Int
+  priority                  Int
+  createdAt                 DateTime           @default(now()) @db.Timestamptz(3)
+  policy                    CancellationPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+
+  @@unique([policyId, minimumHoursBeforeBooking])
+}
+
+enum CancellationType {
+  CUSTOMER_REQUEST
+  OWNER_REQUEST
+  ADMIN_REQUEST
+  WEATHER
+  MAINTENANCE
+  EMERGENCY
+}
+
+enum CancellationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+  FAILED
+}
+
+model CancellationRequest {
+  id               String                    @id @default(uuid()) @db.Uuid
+  bookingId        String                    @unique @db.Uuid
+  requestedById    String                    @db.Uuid
+  reason           String
+  cancellationType CancellationType
+  refundAmount     Int
+  status           CancellationRequestStatus
+  processedById    String?                   @db.Uuid
+  processedAt      DateTime?                 @db.Timestamptz(3)
+  createdAt        DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime                  @updatedAt @db.Timestamptz(3)
+  booking          Booking                   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+}
+
+model CheckInToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  bookingId String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  usedById  String?   @db.Uuid
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  booking   Booking   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId, expiresAt])
+}
+
+enum TransactionType {
+  PAYMENT_CAPTURE
+  OFFLINE_PAYMENT
+  REFUND
+  PLATFORM_FEE
+  TAX
+  ADJUSTMENT
+}
+
+model FinancialTransaction {
+  id              String          @id @default(uuid()) @db.Uuid
+  venueId         String          @db.Uuid
+  bookingId       String          @db.Uuid
+  paymentId       String?         @db.Uuid
+  refundId        String?         @db.Uuid
+  transactionType TransactionType
+  amount          Int
+  currency        String          @db.Char(3)
+  reference       String          @unique
+  occurredAt      DateTime        @db.Timestamptz(3)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+
+  booking Booking  @relation(fields: [bookingId, venueId], references: [id, venueId], onDelete: Restrict)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  refund  Refund?  @relation(fields: [refundId], references: [id], onDelete: Restrict)
+
+  @@index([venueId, occurredAt])
+  @@index([bookingId])
+}
+
+enum RescheduleStatus {
+  AWAITING_PAYMENT
+  COMPLETED
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+model RescheduleRequest {
+  id                   String           @id @default(uuid()) @db.Uuid
+  originalBookingId    String           @unique @db.Uuid
+  replacementBookingId String           @unique @db.Uuid
+  requestedById        String           @db.Uuid
+  originalAmount       Int
+  replacementAmount    Int
+  priceDifference      Int
+  status               RescheduleStatus
+  expiresAt            DateTime         @db.Timestamptz(3)
+  processedAt          DateTime?        @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  original             Booking          @relation("RescheduleSource", fields: [originalBookingId], references: [id], onDelete: Restrict)
+  replacement          Booking          @relation("RescheduleTarget", fields: [replacementBookingId], references: [id], onDelete: Restrict)
+}
+
+model PaymentAllocation {
+  id        String  @id @default(uuid()) @db.Uuid
+  bookingId String  @db.Uuid
+  paymentId String  @db.Uuid
+  amount    Int
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, paymentId])
+  @@index([paymentId])
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  PENDING_MODERATION
+  HIDDEN
+  REJECTED
+}
+
+model Review {
+  id               String         @id @default(uuid()) @db.Uuid
+  bookingId        String         @unique @db.Uuid
+  customerId       String         @db.Uuid
+  venueId          String         @db.Uuid
+  pitchId          String         @db.Uuid
+  rating           Int
+  comment          String?
+  status           ReviewStatus   @default(PUBLISHED)
+  ownerResponse    String?
+  ownerRespondedAt DateTime?      @db.Timestamptz(3)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
+  booking          Booking        @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  reports          ReviewReport[]
+
+  @@index([venueId, status, createdAt])
+}
+
+model ReviewReport {
+  id        String   @id @default(uuid()) @db.Uuid
+  reviewId  String   @db.Uuid
+  userId    String   @db.Uuid
+  reason    String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+
+  @@unique([reviewId, userId])
+}
+
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+enum RedemptionStatus {
+  RESERVED
+  REDEEMED
+  RELEASED
+}
+
+model Coupon {
+  id                    String             @id @default(uuid()) @db.Uuid
+  venueId               String?            @db.Uuid
+  code                  String             @unique
+  description           String
+  discountType          DiscountType
+  discountValue         Int
+  maximumDiscount       Int?
+  minimumBookingAmount  Int
+  usageLimit            Int?
+  usageLimitPerCustomer Int?
+  startsAt              DateTime           @db.Timestamptz(3)
+  expiresAt             DateTime           @db.Timestamptz(3)
+  isActive              Boolean            @default(true)
+  createdById           String             @db.Uuid
+  createdAt             DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime           @updatedAt @db.Timestamptz(3)
+  redemptions           CouponRedemption[]
+
+  venue Venue? @relation(fields: [venueId], references: [id], onDelete: Restrict)
+
+  @@index([venueId, isActive])
+}
+
+model CouponRedemption {
+  id             String           @id @default(uuid()) @db.Uuid
+  couponId       String           @db.Uuid
+  customerId     String           @db.Uuid
+  bookingId      String           @unique @db.Uuid
+  discountAmount Int
+  status         RedemptionStatus
+  expiresAt      DateTime         @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  coupon         Coupon           @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  booking        Booking          @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([couponId, status, expiresAt])
+  @@index([couponId, customerId, status])
+}
+
+model PlatformSetting {
+  key       String   @id
+  amount    Int
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }

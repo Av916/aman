@@ -107,3 +107,52 @@ erDiagram
 The migration adds indexes for owner listings, public visibility, text search, active pitch types, venue amenities, and pitch/status/start slot lookups. Public discovery uses a PostgreSQL text vector and server-side pagination. The exclusion constraint uses `btree_gist`, which the migration role or database operator must be able to install. The Phase 2 migration adds tables and constraints while preserving Phase 1 records.
 
 Availability queries use the generated client and parameterized SQL where needed. Venue and pitch ownership are immutable through public HTTP inputs. Archive and pitch deactivation keep historical records.
+
+## Phase 3 schema
+
+```mermaid
+erDiagram
+  USER ||--o{ BOOKING : reserves
+  VENUE ||--o{ BOOKING : hosts
+  PITCH ||--o{ BOOKING : allocates
+  BOOKING ||--o{ BOOKING_ITEM : snapshots
+  SLOT o|--o{ BOOKING_ITEM : references
+  BOOKING o|--o{ SLOT : actively_owns
+  BOOKING ||--o| PAYMENT_ORDER : initiates
+  PAYMENT_ORDER ||--o{ PAYMENT : observes
+  PAYMENT ||--o| REFUND : compensates
+  VENUE ||--o{ ADDON : offers
+  BOOKING ||--o{ BOOKING_ADDON : snapshots
+  ADDON ||--o{ BOOKING_ADDON : references
+  BOOKING ||--o{ NOTIFICATION : updates
+  BOOKING ||--o| BOOKING_RECEIPT : issues
+  USER ||--o{ IDEMPOTENCY_RECORD : scopes
+```
+
+The booking, slot and add-on models preserve integer paise and UTC snapshots. `PaymentOrder` has a unique provider order ID and stable receipt. Each `Payment` holds a unique provider charge ID. A booking's accepted charge must belong to that same booking. Refunds are unique per captured charge. The webhook inbox uses unique provider event IDs, and the outbox and notifications have semantic dedupe keys.
+
+The migration preserves manually marked Phase 2 inventory. Fresh writes enforce slot ownership immediately. If legacy held or booked rows lack a booking reference, the ownership check remains unvalidated against those rows. They remain unavailable for booking. Review these records before validating the check on an upgraded deployment.
+
+## Phase 4 additions
+
+```mermaid
+erDiagram
+  VENUE ||--o{ GUEST_CUSTOMER : owns
+  USER ||--o{ STAFF_MEMBER : joins
+  STAFF_MEMBER ||--o{ STAFF_VENUE_ASSIGNMENT : receives
+  VENUE ||--o{ STAFF_VENUE_ASSIGNMENT : scopes
+  VENUE ||--o{ CANCELLATION_POLICY : publishes
+  CANCELLATION_POLICY ||--|{ CANCELLATION_POLICY_RULE : defines
+  BOOKING ||--o| CANCELLATION_REQUEST : records
+  BOOKING ||--o{ CHECK_IN_TOKEN : verifies
+  BOOKING ||--o{ PAYMENT_ALLOCATION : funds
+  BOOKING ||--o| REVIEW : verifies
+  REVIEW ||--o{ REVIEW_REPORT : receives
+  COUPON ||--o{ COUPON_REDEMPTION : limits
+  BOOKING ||--o| COUPON_REDEMPTION : snapshots
+  BOOKING ||--o{ FINANCIAL_TRANSACTION : attributes
+  BOOKING ||--o| RESCHEDULE_REQUEST : replaces
+  PAYMENT ||--o{ REFUND : reserves
+```
+
+Every booking references exactly one registered or venue-scoped guest customer. An accepted payment still references its own booking. The allocation table carries payments across replacement bookings. The operational migrations also add check-in timestamps, an audit actor, source, internal notes, a cancellation snapshot, and a platform fee setting. Duplicate source keys and financial constraints protect retries.

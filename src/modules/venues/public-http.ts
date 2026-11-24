@@ -60,6 +60,7 @@ export const availabilityGet = endpoint(
       await pitchAvailability(
         idSchema.parse((await params).pitchId),
         query(r, dayQuery).date,
+        new URL(r.url).searchParams.get("past") === "1",
       ),
     );
   },

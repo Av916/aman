@@ -48,7 +48,7 @@ const questions = [
   {
     question: "Can I book a cricket turf right now?",
     answer:
-      "You can browse published turfs and view available slots. Online reservations will open in a future release.",
+      "Yes. Choose an available pitch and time, review the price, and complete payment to confirm your booking.",
   },
   {
     question: "How do I become a turf owner on PitchMate?",
@@ -176,7 +176,7 @@ export default async function HomePage() {
               How PitchMate works
             </h2>
             <p className="mt-2 text-muted">
-              Here’s what match day will look like when reservations open.
+              From finding a ground to confirming match day.
             </p>
             <div className="mt-8 grid gap-5 md:grid-cols-3">
               {steps.map(({ title, description, icon: Icon }) => (

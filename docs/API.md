@@ -83,3 +83,79 @@ JSON body and error conventions remain the same. Public list routes accept a one
 Public search accepts `q`, `city`, `locality`, `date`, `from`, `until`, `pitchType`, `surfaceType`, `setting`, `capacity`, `minPrice`, `maxPrice`, comma-separated amenity slugs, `lat`, `lng`, and `sort`. Sort keys are `relevance`, `price-asc`, `price-desc`, `recent`, `name`, and `distance`. A dated query uses matching available slot rates. An undated query uses base hourly rates. `from` and `until` use `HH:mm` on the selected date, and the public API accepts `24:00` as an upper bound.
 
 Unauthorized ownership returns 404. Anonymous protected calls return 401 and authenticated role violations return 403. Invalid transitions, protected inventory, ambiguous pricing, and duplicate records return 409. File uploads may return 413, 415, or 422 for size, request format, or invalid image content.
+
+## Phase 3 booking and payments
+
+| Methods       | Path                                                                                                               | Purpose                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| POST          | `/api/bookings/quote`                                                                                              | Authoritative price for `pitchId`, `slotIds` and `addons`                |
+| GET, POST     | `/api/bookings`                                                                                                    | Filtered history, or hold with quote fingerprint and `Idempotency-Key`   |
+| GET, PATCH    | `/api/bookings/[id]`                                                                                               | Read the owned booking, or persist contact data and terms acknowledgment |
+| GET           | `/api/bookings/[id]/status`                                                                                        | Booking, payment and compensation progress                               |
+| POST          | `/api/bookings/[id]/release`                                                                                       | Release an unpaid customer hold                                          |
+| GET           | `/api/bookings/[id]/receipt`, `/api/bookings/[id]/calendar`                                                        | Private PDF and ICS downloads                                            |
+| GET           | `/api/venues/[venueId]/addons`                                                                                     | Active add-ons for a published venue ID                                  |
+| GET, POST     | `/api/owner/venues/[id]/addons`                                                                                    | Read or create add-ons for an owned venue                                |
+| PATCH, DELETE | `/api/owner/addons/[id]`                                                                                           | Edit or deactivate an add-on                                             |
+| POST          | `/api/payments/create-order`, `/api/payments/verify`                                                               | Create or recover the provider order and verify checkout                 |
+| GET           | `/api/payments/[id]/status`                                                                                        | Status for an owned order intent or payment ID                           |
+| POST          | `/api/webhooks/razorpay`                                                                                           | Validate and persist signed Razorpay events                              |
+| GET           | `/api/notifications`, `/api/notifications/unread-count`                                                            | Read the customer's updates                                              |
+| PATCH         | `/api/notifications/[id]/read`, `/api/notifications/read-all`                                                      | Mark one or all notices read                                             |
+| POST          | `/api/internal/jobs/expire-bookings`, `/api/internal/jobs/reconcile-payments`, `/api/internal/jobs/process-outbox` | Bearer-authenticated recovery jobs                                       |
+
+A quote request contains the following shape.
+
+```json
+{
+  "pitchId": "00000000-0000-4000-8000-000000000001",
+  "slotIds": ["00000000-0000-4000-8000-000000000002"],
+  "addons": []
+}
+```
+
+Send the same selection to the booking POST with the quote's `fingerprint` as `quoteFingerprint` plus the `Idempotency-Key` header. A competing hold or changed price returns 409. Retrying an identical accepted key returns the original booking. A hold that expires before payment returns 410. Availability accepts `past=1` for the booking UI to show elapsed slots on the current date.
+
+## Phase 4 operations
+
+```text
+GET /api/owner/{dashboard,calendar,analytics,bookings,staff,customers,reviews,refunds,coupons,reports}
+GET /api/owner/analytics/{revenue,bookings,occupancy}
+GET /api/owner/calendar/venues
+POST /api/owner/calendar/slots/[id]
+POST /api/owner/bookings/{quote,manual}
+GET /api/owner/bookings/[id]
+POST /api/owner/bookings/[id]/{check-in,complete,no-show,record-payment,resend}
+POST /api/owner/bookings/[id]/{cancellation-quote,cancel,reschedule-quote,reschedule,refund}
+GET /api/owner/bookings/[id]/receipt
+POST /api/owner/check-in
+POST /api/owner/staff/invite
+PATCH, DELETE /api/owner/staff/[id]
+PUT /api/owner/staff/[id]/venues
+POST /api/staff/invitations/accept
+GET /api/owner/customers/[id]
+GET /api/owner/customers/[id]/bookings
+GET, POST /api/owner/venues/[id]/cancellation-policies
+PATCH /api/owner/cancellation-policies/[id]
+POST /api/owner/cancellation-policies/[id]/activate
+GET /api/{owner,admin}/refunds/[id]
+POST /api/owner/refunds/[id]/approve
+POST /api/admin/refunds/[id]/retry
+POST /api/bookings/[id]/{cancellation-quote,cancel,reschedule-quote,reschedule,review}
+GET /api/bookings/[id]/{refunds,check-in-token}
+GET /api/venues/[slug]/reviews
+PATCH /api/reviews/[id]
+POST /api/reviews/[id]/report
+POST /api/owner/reviews/[id]/respond
+GET /api/admin/reviews
+POST /api/admin/reviews/[id]/moderate
+GET, POST /api/{owner,admin}/coupons
+PATCH, DELETE /api/{owner,admin}/coupons/[id]
+POST /api/coupons/validate
+GET /api/owner/reports/{bookings,revenue,occupancy,export}
+GET /api/admin/{reports,reports/export,refunds,settings}
+PATCH /api/admin/{settings,users/[id],owners/[id]}
+POST /api/internal/jobs/remind-bookings
+```
+
+Manual booking and refund-adjustment writes require an `Idempotency-Key` header. Cancellation writes require `confirmed: true`, the reason, and `expectedRefundAmount` in paise from the latest quote. Rescheduling passes pitch and slot IDs to the quote endpoint and supplies the returned fingerprint when confirming.

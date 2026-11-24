@@ -1,16 +1,16 @@
+import { VenueReviews } from "@/components/operations/public-reviews";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PublicNav } from "@/components/layouts/public-nav";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { VenueCard } from "@/components/venues/venue-card";
 import { VenueGallery } from "@/components/venues/gallery";
 import { VenueInformation } from "@/components/venues/venue-information";
 import { FavoriteButton } from "@/components/venues/favorite-button";
-import { money, slotTime, slotLabel } from "@/components/venues/format";
+import { BookingPanel } from "@/components/bookings/booking-panel";
+import { venueAddons } from "@/modules/addons/service";
 import { discoverVenues } from "@/modules/venues/venue.repository";
 import { publicVenueView } from "@/modules/venues/public-view";
 import { pitchAvailability } from "@/modules/availability/service";
@@ -71,11 +71,12 @@ export default async function VenuePage({
   const pitch =
     venue.pitches.find(({ id }) => id === query.pitch) ?? venue.pitches[0];
   const date = dayQuery.safeParse({ date: query.date || undefined });
-  const [availability, similar] = await Promise.all([
+  const [availability, similar, addons] = await Promise.all([
     pitch
       ? pitchAvailability(
           pitch.id,
           date.success ? date.data.date : undefined,
+          true,
         ).catch((error) => {
           if (error instanceof AppError && error.status === 404) return null;
           throw error;
@@ -85,6 +86,10 @@ export default async function VenuePage({
       discoveryQuery.parse({ city: venue.city, sort: "recent" }),
       venue.id,
     ),
+    venueAddons(venue.id).catch((error) => {
+      if (error instanceof AppError && error.status === 404) return [];
+      throw error;
+    }),
   ]);
   const saved =
     user?.role === "CUSTOMER"
@@ -127,88 +132,24 @@ export default async function VenuePage({
         <VenueGallery images={venue.images} />
         <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1.7fr)_minmax(22rem,1fr)]">
           <VenueInformation venue={venue} showGallery={false} />
-          <aside className="rounded-2xl border border-border bg-surface p-5 lg:sticky lg:top-5">
-            <h2 className="text-2xl font-extrabold">Pitch availability</h2>
-            {venue.pitches.length > 0 && (
-              <p className="mt-1 text-sm text-muted">
-                From{" "}
-                <strong className="text-foreground">
-                  {money(venue.pitches[0].basePrice)}
-                </strong>{" "}
-                / hour
+          {pitch && availability ? (
+            <BookingPanel
+              key={`${pitch.id}:${availability.date}`}
+              slug={venue.slug}
+              pitch={pitch}
+              pitches={venue.pitches}
+              initial={availability}
+              addons={addons}
+              role={user?.role}
+            />
+          ) : (
+            <aside className="rounded-2xl border border-border bg-surface p-5">
+              <h2 className="text-2xl font-extrabold">Pitch availability</h2>
+              <p className="mt-2 text-muted">
+                There are no active pitches to reserve.
               </p>
-            )}
-            {availability && (
-              <form action={`/turfs/${venue.slug}`} className="mt-4 grid gap-3">
-                <label className="grid gap-1 text-sm font-bold">
-                  Pitch
-                  <select
-                    name="pitch"
-                    defaultValue={pitch.id}
-                    className="min-h-12 w-full rounded-xl border border-control-border bg-surface px-3"
-                  >
-                    {venue.pitches.map((item) => (
-                      <option value={item.id} key={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-sm font-bold">
-                  Availability date
-                  <Input
-                    name="date"
-                    type="date"
-                    defaultValue={availability.date}
-                    min={availability.today}
-                    max={availability.maxDate}
-                    required
-                  />
-                </label>
-                <Button type="submit">Check availability</Button>
-              </form>
-            )}
-            <p className="mt-4 text-sm text-muted">
-              {availability?.timezone ?? venue.timezone}
-            </p>
-            {availability?.slots.length ? (
-              <ul className="mt-3 grid max-h-[24rem] grid-cols-2 gap-2 overflow-auto pr-1">
-                {availability.slots.map((slot) => (
-                  <li
-                    key={slot.id}
-                    className="rounded-xl border border-border bg-background p-2.5 text-xs"
-                  >
-                    <p className="font-bold">
-                      {slotTime(slot.startAt, availability.timezone)} –{" "}
-                      {slotTime(slot.endAt, availability.timezone)}
-                    </p>
-                    <Badge
-                      tone={
-                        slot.status === "AVAILABLE"
-                          ? "green"
-                          : slot.status === "BLOCKED"
-                            ? "amber"
-                            : "neutral"
-                      }
-                      className="mt-1"
-                    >
-                      {slotLabel[slot.status]}
-                    </Badge>
-                    {slot.status === "AVAILABLE" && (
-                      <p className="mt-1 font-bold">{money(slot.price)}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 rounded-xl bg-background p-4 text-sm text-muted">
-                No slots for this date. Try a different date or pitch.
-              </p>
-            )}
-            <Button className="mt-4 w-full" disabled>
-              Reservations coming soon
-            </Button>
-          </aside>
+            </aside>
+          )}
         </div>
         {similar.venues.length > 0 && (
           <section className="mt-12">
@@ -232,6 +173,7 @@ export default async function VenuePage({
             </Button>
           </section>
         )}
+        <VenueReviews slug={venue.slug} canReport={Boolean(user)} />
       </main>
     </>
   );

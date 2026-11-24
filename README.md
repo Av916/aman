@@ -2,7 +2,9 @@
 
 **Your Game. Your Pitch.**
 
-PitchMate is a cricket turf marketplace for players and facility owners. The app includes account management, role-specific dashboards, live turf discovery, owner venue tools and date-based availability. Optional local demo data illustrates the full marketplace workflow.
+PitchMate is a cricket turf marketplace for players and facility owners. The app includes account management, role-specific dashboards, live turf discovery, owner venue tools, date-based availability, and customer booking and payment. Optional local demo data illustrates the full marketplace workflow.
+
+Phase 4 adds owner and staff operations, including a pitch calendar, manual reservations, attendance, refunds, staff assignments, analytics, and CSV reports. Customers can cancel or reschedule eligible bookings, use coupons, and review completed sessions. [Phase 4 operating guide](docs/PHASE_4.md)
 
 ## Local setup
 
@@ -88,3 +90,14 @@ Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` t
 - [Venue workflow](docs/VENUE_MANAGEMENT.md)
 - [Availability generation](docs/SLOT_GENERATION.md)
 - [Pricing rules](docs/PRICING_RULES.md)
+
+## Phase 3 booking and payments
+
+After applying migrations, configure the three `RAZORPAY_*` values in `.env`. Start with test credentials and set up the signed webhook endpoint. Set `BOOKING_HOLD_MINUTES`, `MAX_ACTIVE_HOLDS_PER_USER`, `PLATFORM_FEE_PAISE`, and `TAX_RATE_BPS` to the approved deployment values. Run `bun run bookings:work` from a minute-level scheduler or configure the internal job endpoints with `INTERNAL_JOB_SECRET`.
+
+Playwright uses a loopback provider fixture and local email delivery. See the Phase 3 report for verification, setup, and deployment limits.
+
+- [Phase 3 report and Phase 4 checklist](docs/PHASE_3.md)
+- [Booking engine](docs/BOOKING_ENGINE.md)
+- [Razorpay setup](docs/PAYMENT_INTEGRATION.md)
+- [Background jobs](docs/BACKGROUND_JOBS.md)

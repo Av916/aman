@@ -1,3 +1,5 @@
+import { getPrisma } from "@/lib/prisma";
+import { venueScope } from "@/modules/permissions/operations";
 import Link from "next/link";
 import {
   BadgeCheck,
@@ -25,7 +27,7 @@ import {
 } from "@/config/dashboard";
 import { dashboardPath } from "@/config/navigation";
 import type { UserRole } from "@/generated/prisma/enums";
-import { requireDashboardRole } from "@/lib/auth";
+import { currentUser, requireDashboardRole } from "@/lib/auth";
 import { ownerVenueCounts } from "@/modules/venues/venue.repository";
 import { accountCounts } from "@/modules/users/admin-repository";
 import { findProfile, type Profile } from "@/modules/users/repository";
@@ -57,17 +59,24 @@ export async function Dashboard({
   content,
   pageTitle,
   pageDescription,
+  staffSections,
 }: {
   role: UserRole;
   section?: string;
   content?: React.ReactNode;
   pageTitle?: string;
   pageDescription?: string;
+  staffSections?: string[];
 }) {
-  const user = await requireDashboardRole(role);
+  const user =
+    staffSections && role === "OWNER" && content
+      ? await currentUser()
+      : await requireDashboardRole(role);
+  if (!user) redirect("/login");
   const profile = await findProfile(user.id);
   if (!profile || profile.status !== "ACTIVE") redirect("/login");
-  if (profile.role !== role) redirect(dashboardPath[profile.role]);
+  if (profile.role !== role && !staffSections)
+    redirect(dashboardPath[profile.role]);
 
   const selected =
     dashboardSections[role].find(({ id }) => id === section) ??
@@ -77,6 +86,8 @@ export async function Dashboard({
     !content &&
     (selected.id === "turfs" ||
       selected.id === "favorites" ||
+      (role === "CUSTOMER" &&
+        ["bookings", "notifications"].includes(selected.id)) ||
       (role === "OWNER" && selected.id === "pricing"))
   )
     redirect(dashboardHref(role, selected.id));
@@ -101,12 +112,16 @@ export async function Dashboard({
           : "This section will open in a future release.";
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
       <div className="flex items-center justify-between gap-4 border-b border-border bg-surface px-4 py-3 lg:hidden">
         <Logo />
         <ThemeMenu />
       </div>
-      <DashboardNav role={role} selected={selected.id} />
+      <DashboardNav
+        role={role}
+        selected={selected.id}
+        allowed={staffSections}
+      />
       <div className="min-w-0">
         <header className="hidden h-[5.15rem] items-center justify-between gap-3 border-b border-border bg-surface px-8 lg:flex">
           <span className="font-bold">{dashboardNames[role]}</span>
@@ -244,6 +259,10 @@ async function Overview({ profile }: { profile: Profile }) {
       </div>
     );
   }
+  const hasVenueWorkspace = await getPrisma().venue.findFirst({
+    where: venueScope({ id: profile.id, role: profile.role }, "calendar"),
+    select: { id: true },
+  });
   return (
     <div className="grid gap-5">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -252,13 +271,18 @@ async function Overview({ profile }: { profile: Profile }) {
       </div>
       <EmptyState
         title="Your bookings"
-        description="Reservations will appear here when booking opens."
+        description="See your upcoming reservations and recent booking history."
         icon={CalendarDays}
       />
       <div className="flex flex-wrap gap-3">
         <Button asChild>
           <Link href="/turfs">Explore cricket turfs</Link>
         </Button>
+        {hasVenueWorkspace && (
+          <Button asChild variant="outline">
+            <Link href="/owner/calendar">Venue workspace</Link>
+          </Button>
+        )}
         <Button asChild variant="outline">
           <Link href={dashboardHref(profile.role, "profile")}>
             Edit profile

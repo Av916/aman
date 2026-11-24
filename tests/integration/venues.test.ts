@@ -221,9 +221,34 @@ describe.skipIf(!databaseUrl)("Phase 2 persistence and review", () => {
     });
     expect(rows).toHaveLength(8);
     const [reserved, maintenance] = rows;
+    const holdExpiresAt = new Date(Date.now() + 600_000);
+    const reservation = await database.booking.create({
+      data: {
+        bookingNumber: `fixture-${randomUUID()}`,
+        customerId: playerId,
+        venueId: pitch.venueId,
+        pitchId: pitch.id,
+        venueName: "Protection fixture",
+        venueAddress: "Test address",
+        pitchName: pitch.name,
+        timezone: zone,
+        startAt: reserved.startAt,
+        endAt: reserved.endAt,
+        durationMinutes: 30,
+        holdExpiresAt,
+        subtotal: 40000,
+        addonTotal: 0,
+        platformFee: 0,
+        taxAmount: 0,
+        totalAmount: 40000,
+        customerName: "Fixture",
+        customerEmail: "fixture@example.test",
+        playerCount: 2,
+      },
+    });
     await database.slot.update({
       where: { id: reserved.id },
-      data: { status: "BOOKED" },
+      data: { status: "HELD", activeBookingId: reservation.id, holdExpiresAt },
     });
     const row = {
       pitchId: pitch.id,

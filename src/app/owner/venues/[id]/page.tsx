@@ -1,6 +1,7 @@
 import { Dashboard } from "@/components/layouts/dashboard";
 import { OwnerUnverified } from "@/components/venues/management-list";
 import { VenueWizard } from "@/components/venues/venue-wizard";
+import { venueAddons } from "@/modules/addons/service";
 import { listAmenities } from "@/modules/amenities/service";
 import {
   ownerPageVenue,
@@ -22,10 +23,11 @@ export default async function ManageVenue({
       <Dashboard role="OWNER" section="turfs" content={<OwnerUnverified />} />
     );
   const { id } = await params;
-  const [venue, query, amenities] = await Promise.all([
+  const [venue, query, amenities, addons] = await Promise.all([
     ownerPageVenue(id, user.id),
     searchParams,
     listAmenities(),
+    venueAddons(id, user.id).catch(() => []),
   ]);
   const nextStep =
     venue.status !== "DRAFT"
@@ -64,6 +66,7 @@ export default async function ManageVenue({
           venue={venue}
           step={step}
           options={amenities}
+          addons={addons}
           maxImages={venueSettings().MAX_VENUE_IMAGES}
         />
       }
