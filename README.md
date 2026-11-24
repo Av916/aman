@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PitchMate
 
-## Getting Started
+**Your Game. Your Pitch.**
 
-First, run the development server:
+PitchMate is a cricket turf marketplace for players and facility owners. Phase 1 delivers the public site, account lifecycle, role-specific dashboards and PostgreSQL foundation. Featured turfs and search use demonstration data.
+
+## Local setup
+
+Install Bun 1.4+, a supported Node.js version (20.19+, 22.12+ or 24+), Docker with Compose, and OpenSSL. The lockfile is managed by Bun.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install --frozen-lockfile
+cp .env.example .env
+openssl rand -base64 48
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Put the generated value in `AUTH_SECRET` in `.env`. Keep the local database credentials in `DATABASE_URL` aligned with the `POSTGRES_*` values. Use `http://localhost:3000` consistently in your browser and as `APP_URL`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+docker compose up -d --wait
+bun run db:generate
+bun run db:migrate
+bun run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open `http://localhost:3000`. With the default email configuration, registration and reset links are saved in the ignored `.pitchmate-mail/` directory. Open the complete link, including its fragment, using the same application origin.
 
-## Learn More
+To create a local admin, set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `.env`. Use a unique password with at least 16 characters and run `bun run db:seed`. Sign in at `/login`. Other accounts are created through `/register` or `/register-owner`.
 
-To learn more about Next.js, take a look at the following resources:
+## Configuration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable                                                             | Purpose                                                                                                                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                       | PostgreSQL connection. Use a pooled endpoint for application traffic where applicable.                                    |
+| `DIRECT_DATABASE_URL`                                                | Optional direct connection for Prisma CLI migration commands.                                                             |
+| `AUTH_SECRET`                                                        | Unique secret, minimum 32 characters. Share it across application instances.                                              |
+| `APP_URL`                                                            | Canonical origin with no trailing slash. Deployed instances require HTTPS. This also configures NextAuth's canonical URL. |
+| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`                               | Set both to enable Google sign-in. Register `APP_URL/api/auth/callback/google` as the redirect URI.                       |
+| `EMAIL_FROM`, `EMAIL_PROVIDER_API_KEY`                               | Verified Resend sender and API key. Both are required for deployed instances.                                             |
+| `AUTH_TRUSTED_IP_HEADER`                                             | Optional lowercase header name from an ingress that overwrites this header with a single verified client IP.              |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | Local Docker Compose database configuration.                                                                              |
+| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`                            | Development admin provisioning.                                                                                           |
+| `PROVISION_ADMIN_EMAIL`, `PROVISION_ADMIN_PASSWORD`                  | One-time operator credentials for production provisioning. Inject both through your secret manager.                       |
+| `TEST_DATABASE_URL`                                                  | Separate disposable database for integration and browser tests.                                                           |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+For a deployment, run `bun run db:deploy` to apply committed migrations, then use `bun run build` and `bun run start`. Run `NODE_ENV=production bun run db:provision-admin --confirm` from a trusted operator environment to create a production admin. Remove the provisioning values after use. The command refuses to promote an existing account.
 
-## Deploy on Vercel
+## Checks
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+bun run lint
+bun run typecheck
+bun run test
+bun run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For integration and browser tests, create a separate PostgreSQL database, set `TEST_DATABASE_URL` in `.env`, and apply the migration there.
+
+```bash
+bun --env-file=.env -e 'const p = Bun.spawn(["bun", "run", "db:deploy"], { env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL, DIRECT_DATABASE_URL: "" }, stdout: "inherit", stderr: "inherit" }); process.exit(await p.exited)'
+bun run test
+bunx playwright install chromium
+bun run test:e2e
+```
+
+Vitest skips database integration tests when `TEST_DATABASE_URL` is absent. Playwright requires that database, creates a production build, and starts its own server on port 3100. The test runner uses local email files and disables external providers.
+
+Use `bun run format` for Prettier, `bun run db:studio` to inspect local data, and `bun run db:deploy` to apply checked-in migrations without the development migration workflow.
+
+## Reference
+
+- [Architecture and folder structure](docs/ARCHITECTURE.md)
+- [Database and ER diagram](docs/DATABASE.md)
+- [API and request examples](docs/API.md)
+- [Security and operational controls](docs/SECURITY.md)
+- [Design system](docs/DESIGN_SYSTEM.md)
+- [Phase 1 scope and Phase 2 checklist](docs/PHASE_1.md)

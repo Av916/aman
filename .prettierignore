@@ -1,0 +1,6 @@
+.next
+bun.lock
+src/generated
+public
+playwright-report
+test-results

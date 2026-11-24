@@ -1,0 +1,360 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CUSTOMER
+  OWNER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id             String     @id @default(uuid()) @db.Uuid
+  name           String
+  email          String     @unique
+  passwordHash   String?
+  phone          String?
+  image          String?
+  role           UserRole   @default(CUSTOMER)
+  status         UserStatus @default(ACTIVE)
+  emailVerified  DateTime?  @db.Timestamptz(3)
+  sessionVersion Int        @default(0)
+  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
+
+  accounts           Account[]
+  sessions           Session[]
+  verificationTokens VerificationToken[]
+  resetTokens        PasswordResetToken[]
+  ownerProfile       OwnerProfile?
+  auditLogs          AuditLog[]
+  venues             Venue[]
+  favorites          Favorite[]
+
+  @@index([role, status])
+}
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime @db.Timestamptz(3)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime @db.Timestamptz(3)
+  user       User     @relation(fields: [identifier], references: [email], onDelete: Cascade)
+
+  @@unique([identifier, token])
+  @@index([expires])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@index([expiresAt])
+}
+
+model OwnerProfile {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @unique @db.Uuid
+  businessName       String
+  businessPhone      String
+  verificationStatus VerificationStatus @default(PENDING)
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([verificationStatus])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId, createdAt])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
+}
+
+enum VenueStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum PitchType {
+  BOX_CRICKET
+  NET_PRACTICE
+  FULL_GROUND
+  INDOOR_CRICKET
+  OUTDOOR_CRICKET
+}
+
+enum SurfaceType {
+  ARTIFICIAL_TURF
+  NATURAL_GRASS
+  CEMENT
+  MATTING
+  OTHER
+}
+
+enum PricingRuleType {
+  WEEKDAY
+  WEEKEND
+  PEAK_HOUR
+  OFF_PEAK
+  HOLIDAY
+  SPECIAL_EVENT
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BLOCKED
+  HELD
+  BOOKED
+}
+
+model Venue {
+  id              String         @id @default(uuid()) @db.Uuid
+  ownerId         String         @db.Uuid
+  name            String
+  slug            String         @unique
+  description     String         @default("")
+  address         String         @default("")
+  locality        String         @default("")
+  city            String         @default("")
+  state           String         @default("")
+  country         String         @default("India")
+  postalCode      String         @default("")
+  latitude        Float?
+  longitude       Float?
+  contactPhone    String         @default("")
+  contactEmail    String         @default("")
+  timezone        String         @default("Asia/Kolkata")
+  status          VenueStatus    @default(DRAFT)
+  rejectionReason String?
+  publishedAt     DateTime?      @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+  deletedAt       DateTime?      @db.Timestamptz(3)
+  owner           User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  pitches         Pitch[]
+  images          VenueImage[]
+  amenities       VenueAmenity[]
+  favorites       Favorite[]
+
+  @@index([ownerId, status, createdAt])
+  @@index([status, city, publishedAt])
+}
+
+model Pitch {
+  id                    String              @id @default(uuid()) @db.Uuid
+  venueId               String              @db.Uuid
+  name                  String
+  description           String              @default("")
+  pitchType             PitchType
+  surfaceType           SurfaceType
+  isIndoor              Boolean             @default(false)
+  capacity              Int
+  lengthInMeters        Int
+  widthInMeters         Int
+  basePrice             Int
+  slotDurationMinutes   Int                 @default(60)
+  minimumBookingMinutes Int                 @default(60)
+  maximumBookingMinutes Int                 @default(180)
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime            @updatedAt @db.Timestamptz(3)
+  venue                 Venue               @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  hours                 OperatingHours[]
+  exceptions            ScheduleException[]
+  pricingRules          PricingRule[]
+  slots                 Slot[]
+
+  @@unique([venueId, name])
+  @@index([venueId, isActive, pitchType])
+}
+
+model VenueImage {
+  id         String   @id @default(uuid()) @db.Uuid
+  venueId    String   @db.Uuid
+  imageUrl   String
+  storageKey String   @unique
+  altText    String
+  isCover    Boolean  @default(false)
+  sortOrder  Int
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  venue      Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, sortOrder])
+}
+
+model MediaCleanup {
+  storageKey String   @id
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model Amenity {
+  id       String         @id @default(uuid()) @db.Uuid
+  name     String
+  slug     String         @unique
+  icon     String
+  isActive Boolean        @default(true)
+  venues   VenueAmenity[]
+}
+
+model VenueAmenity {
+  venueId   String  @db.Uuid
+  amenityId String  @db.Uuid
+  venue     Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Restrict)
+
+  @@id([venueId, amenityId])
+  @@index([amenityId, venueId])
+}
+
+model OperatingHours {
+  id          String   @id @default(uuid()) @db.Uuid
+  pitchId     String   @db.Uuid
+  dayOfWeek   Int
+  openingTime Int?
+  closingTime Int?
+  isClosed    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  pitch       Pitch    @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, dayOfWeek, openingTime])
+  @@index([pitchId, dayOfWeek])
+}
+
+model ScheduleException {
+  id          String   @id @default(uuid()) @db.Uuid
+  pitchId     String   @db.Uuid
+  date        DateTime @db.Date
+  openingTime Int?
+  closingTime Int?
+  isClosed    Boolean  @default(false)
+  reason      String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  pitch       Pitch    @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, date])
+}
+
+model PricingRule {
+  id             String          @id @default(uuid()) @db.Uuid
+  pitchId        String          @db.Uuid
+  name           String
+  ruleType       PricingRuleType
+  daysOfWeek     Int[]
+  startTime      Int?
+  endTime        Int?
+  pricePerHour   Int
+  effectiveFrom  DateTime?       @db.Date
+  effectiveUntil DateTime?       @db.Date
+  priority       Int             @default(0)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+  pitch          Pitch           @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@index([pitchId, isActive])
+}
+
+model Slot {
+  id            String     @id @default(uuid()) @db.Uuid
+  pitchId       String     @db.Uuid
+  startAt       DateTime   @db.Timestamptz(3)
+  endAt         DateTime   @db.Timestamptz(3)
+  status        SlotStatus @default(AVAILABLE)
+  price         Int
+  hourlyPrice   Int
+  currency      String     @default("INR") @db.Char(3)
+  holdExpiresAt DateTime?  @db.Timestamptz(3)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+  pitch         Pitch      @relation(fields: [pitchId], references: [id], onDelete: Restrict)
+
+  @@unique([pitchId, startAt])
+  @@index([pitchId, status, startAt])
+}
+
+model Favorite {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  venueId   String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, venueId])
+  @@index([venueId])
+}
