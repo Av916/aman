@@ -2,7 +2,14 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { dashboardPath } from "@/config/navigation";
 
-export default async function AccountPage() {
+import { turfReturnPath } from "@/config/return-path";
+
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const user = await currentUser();
-  redirect(user ? dashboardPath[user.role] : "/login");
+  const next = turfReturnPath((await searchParams).next);
+  redirect(user ? (next ?? dashboardPath[user.role]) : "/login");
 }

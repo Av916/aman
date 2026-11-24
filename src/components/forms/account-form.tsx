@@ -170,13 +170,18 @@ export function AccountForm({
   initialValues,
   google = false,
   oauthError = false,
+  returnPath,
 }: {
   mode: AccountFormMode;
   initialValues?: Values;
   google?: boolean;
   oauthError?: boolean;
+  returnPath?: string;
 }) {
   const router = useRouter();
+  const accountUrl = returnPath
+    ? `/account?next=${encodeURIComponent(returnPath)}`
+    : "/account";
   const [complete, setComplete] = useState("");
   const [failure, setFailure] = useState(
     oauthError
@@ -211,10 +216,10 @@ export function AccountForm({
         const result = await signIn("credentials", {
           ...data,
           redirect: false,
-          callbackUrl: "/account",
+          callbackUrl: accountUrl,
         });
         if (result?.ok && !result.error) {
-          router.replace("/account");
+          router.replace(accountUrl);
           return;
         }
         setFailure(
@@ -261,7 +266,7 @@ export function AccountForm({
     setFailure("");
     setGooglePending(true);
     try {
-      await signIn("google", { callbackUrl: "/account" });
+      await signIn("google", { callbackUrl: accountUrl });
     } catch {
       setFailure("Google sign-in could not be started. Try again.");
       setGooglePending(false);

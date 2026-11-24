@@ -10,6 +10,11 @@ export async function limitAttempt(
   scope: string,
   headers: RequestHeaders,
   identity?: string,
+  thresholds: { global: number; ip: number; identity: number } = {
+    global: 300,
+    ip: 40,
+    identity: 8,
+  },
 ) {
   const env = getEnv();
   const header = env.AUTH_TRUSTED_IP_HEADER;
@@ -18,9 +23,11 @@ export async function limitAttempt(
     (headers instanceof Headers ? headers.get(header) : headers[header]);
   const ip = typeof rawIp === "string" && isIP(rawIp) ? rawIp : undefined;
   const keys = [
-    { subject: "global", limit: 300 },
-    ...(ip ? [{ subject: `ip:${ip}`, limit: 40 }] : []),
-    ...(identity ? [{ subject: `identity:${identity}`, limit: 8 }] : []),
+    { subject: "global", limit: thresholds.global },
+    ...(ip ? [{ subject: `ip:${ip}`, limit: thresholds.ip }] : []),
+    ...(identity
+      ? [{ subject: `identity:${identity}`, limit: thresholds.identity }]
+      : []),
   ];
 
   for (const { subject, limit } of keys) {

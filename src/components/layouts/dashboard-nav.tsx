@@ -6,6 +6,15 @@ import type { UserRole } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 
 export function dashboardHref(role: UserRole, section: string) {
+  if (section === "turfs")
+    return {
+      CUSTOMER: "/turfs",
+      OWNER: "/owner/venues",
+      ADMIN: "/admin/venues",
+    }[role];
+  if (role === "CUSTOMER" && section === "favorites")
+    return "/dashboard/favorites";
+  if (role === "OWNER" && section === "pricing") return "/owner/venues";
   return section === "overview"
     ? dashboardPath[role]
     : `${dashboardPath[role]}?section=${section}`;

@@ -1,68 +1,37 @@
-"use client";
-import { useState } from "react";
-import { CalendarDays, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CalendarDays, MapPin, Search } from "lucide-react";
 
-export function TurfPreviewSearch() {
-  const [message, setMessage] = useState("");
+export function TurfSearch({ cities }: { cities: { city: string }[] }) {
   return (
     <form
-      className="grid gap-3 rounded-2xl border border-border bg-surface p-3 shadow-xl sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:p-3.5"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setMessage(
-          "Live search opens in Phase 2. Explore the sample turfs below.",
-        );
-        document.getElementById("turfs")?.scrollIntoView({ block: "start" });
-      }}
+      action="/turfs"
+      className="grid gap-3 rounded-2xl border border-border bg-surface p-3 shadow-xl sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:p-4"
     >
-      <label
-        htmlFor="preview-location"
-        className="flex min-w-0 items-center gap-3 rounded-xl bg-background px-4 py-2.5"
-      >
-        <MapPin
-          className="shrink-0 text-brand-dot"
-          size={20}
-          aria-hidden="true"
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold">Location</span>
-          <select
-            id="preview-location"
-            className="h-8 w-full rounded bg-background text-sm text-muted"
-          >
-            <option value="">Choose a city</option>
-            <option>Bengaluru</option>
-            <option>Hyderabad</option>
-            <option>Pune</option>
-          </select>
+      <label className="grid gap-1 rounded-xl bg-background p-2.5 text-sm font-bold">
+        <span className="flex items-center gap-2">
+          <MapPin size={17} className="text-brand-dot" aria-hidden /> Location
         </span>
+        <select
+          name="city"
+          className="min-h-11 rounded-xl border border-control-border bg-surface px-3 text-sm"
+        >
+          <option value="">All cities</option>
+          {cities.map(({ city }) => (
+            <option key={city}>{city}</option>
+          ))}
+        </select>
       </label>
-      <label
-        htmlFor="preview-date"
-        className="flex min-w-0 items-center gap-3 rounded-xl bg-background px-4 py-2.5"
-      >
-        <CalendarDays
-          className="shrink-0 text-brand-dot"
-          size={20}
-          aria-hidden="true"
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold">Play date</span>
-          <input
-            type="date"
-            id="preview-date"
-            className="block h-8 w-full min-w-0 rounded bg-background text-sm text-muted"
-          />
+      <label className="grid gap-1 rounded-xl bg-background p-2.5 text-sm font-bold">
+        <span className="flex items-center gap-2">
+          <CalendarDays size={17} className="text-brand-dot" aria-hidden /> Play
+          date
         </span>
+        <Input name="date" type="date" />
       </label>
-      <Button type="submit" size="lg" className="min-h-14">
-        <Search size={18} aria-hidden="true" /> Preview search
+      <Button type="submit" size="lg">
+        <Search size={18} aria-hidden /> Search turfs
       </Button>
-      <p role="status" className="text-sm text-muted sm:col-span-full">
-        {message ||
-          "Demo search · Live availability and booking open in Phase 2."}
-      </p>
     </form>
   );
 }

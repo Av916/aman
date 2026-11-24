@@ -2,7 +2,7 @@
 
 **Your Game. Your Pitch.**
 
-PitchMate is a cricket turf marketplace for players and facility owners. Phase 1 delivers the public site, account lifecycle, role-specific dashboards and PostgreSQL foundation. Featured turfs and search use demonstration data.
+PitchMate is a cricket turf marketplace for players and facility owners. The app includes account management, role-specific dashboards, live turf discovery, owner venue tools and date-based availability. Optional local demo data illustrates the full marketplace workflow.
 
 ## Local setup
 
@@ -75,3 +75,16 @@ Use `bun run format` for Prettier, `bun run db:studio` to inspect local data, an
 - [Security and operational controls](docs/SECURITY.md)
 - [Design system](docs/DESIGN_SYSTEM.md)
 - [Phase 1 scope and Phase 2 checklist](docs/PHASE_1.md)
+
+## Phase 2 marketplace
+
+Apply the marketplace migration with `bun run db:migrate` locally or `bun run db:deploy` for a configured deployment. Check that the PostgreSQL migration role can install `btree_gist`. Existing users and accounts are preserved.
+
+For fictional demonstration data on a loopback database, set `DEMO_ACCOUNT_PASSWORD` to at least 16 characters and run `bun run db:seed:demo`. The seed adds 12 venues across Ludhiana, Chandigarh, Delhi and Bengaluru, owner accounts with addresses such as `owner-ludhiana@demo.pitchmate.test`, and `player@demo.pitchmate.test`. The admin seed still uses `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`. To verify an existing active owner from the operator environment, use `bun run db:verify-owner owner@example.com`.
+
+Set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` together to enable hosted image uploads. On loopback, files are stored privately under `.pitchmate-media/` unless `PITCHMATE_MEDIA_DIR` is set. Uploads default to 10 images per venue and 5 MB per image. The defaults for timezone, currency, and inventory horizon are `Asia/Kolkata`, `INR`, and 30 days. Schedule `bun run slots:extend`, or set `SLOT_JOB_SECRET` to call the batch HTTP job.
+
+- [Phase 2 scope and Phase 3 readiness](docs/PHASE_2.md)
+- [Venue workflow](docs/VENUE_MANAGEMENT.md)
+- [Availability generation](docs/SLOT_GENERATION.md)
+- [Pricing rules](docs/PRICING_RULES.md)

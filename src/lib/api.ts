@@ -81,10 +81,12 @@ export function success(message: string, data: object = {}, status = 200) {
   return Response.json({ success: true, message, data }, { status, headers });
 }
 
-export function endpoint(handler: (request: Request) => Promise<Response>) {
-  return async (request: Request): Promise<Response> => {
+export function endpoint<Args extends unknown[]>(
+  handler: (request: Request, ...args: Args) => Promise<Response>,
+) {
+  return async (request: Request, ...args: Args): Promise<Response> => {
     try {
-      return await handler(request);
+      return await handler(request, ...args);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const details = error.issues.map(({ path, message }) => ({
@@ -114,6 +116,16 @@ export function endpoint(handler: (request: Request) => Promise<Response>) {
                 ? { ...headers, "Retry-After": "900" }
                 : headers,
           },
+        );
+      }
+      if (error instanceof Error && "code" in error && error.code === "P2002") {
+        return Response.json(
+          {
+            success: false,
+            message: "A record with these details already exists.",
+            error: { code: "DUPLICATE_RECORD", details: [] },
+          },
+          { status: 409, headers },
         );
       }
       console.error("PitchMate API request failed", {

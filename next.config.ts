@@ -2,6 +2,19 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: {
+    remotePatterns: process.env.CLOUDINARY_CLOUD_NAME
+      ? [
+          {
+            protocol: "https",
+            hostname: "res.cloudinary.com",
+            pathname: `/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/**`,
+            search: "",
+          },
+        ]
+      : [],
+    maximumRedirects: 0,
+  },
   async headers() {
     return [
       {
@@ -12,7 +25,7 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            value: "camera=(), microphone=(), geolocation=(self)",
           },
           {
             key: "Content-Security-Policy",

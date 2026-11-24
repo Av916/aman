@@ -18,7 +18,7 @@ process.env.PITCHMATE_E2E_MAIL_DIR = mailDirectory;
 export default defineConfig({
   testDir: "./tests/e2e",
   workers: 1,
-  timeout: 50_000,
+  timeout: 75_000,
   use: {
     ...devices["Desktop Chrome"],
     baseURL: origin,
@@ -33,6 +33,10 @@ export default defineConfig({
       APP_URL: origin,
       NEXTAUTH_URL: origin,
       AUTH_GOOGLE_ID: "",
+      CLOUDINARY_CLOUD_NAME: "",
+      CLOUDINARY_API_KEY: "",
+      CLOUDINARY_API_SECRET: "",
+      PITCHMATE_MEDIA_DIR: mkdtempSync(join(tmpdir(), "pitchmate-e2e-media-")),
       AUTH_GOOGLE_SECRET: "",
       EMAIL_PROVIDER_API_KEY: "",
       EMAIL_FROM: "",

@@ -1,6 +1,7 @@
 "use client";
 import { Dialog as Primitive } from "radix-ui";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
 export const Dialog = Primitive.Root;
@@ -11,15 +12,22 @@ export function DialogContent({
   title,
   description,
   children,
+  className,
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
     <Primitive.Portal>
       <Primitive.Overlay className="fixed inset-0 z-50 bg-black/55" />
-      <Primitive.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,27rem)] -translate-1/2 rounded-2xl border border-border bg-surface p-6 shadow-xl">
+      <Primitive.Content
+        className={cn(
+          "fixed top-1/2 left-1/2 z-50 w-[min(92vw,27rem)] -translate-1/2 rounded-2xl border border-border bg-surface p-6 shadow-xl",
+          className,
+        )}
+      >
         <Primitive.Title className="pr-10 text-xl font-extrabold">
           {title}
         </Primitive.Title>

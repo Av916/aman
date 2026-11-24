@@ -74,3 +74,36 @@ erDiagram
 Dependent account, session, verification and recovery records cascade on user deletion. User roles are `CUSTOMER`, `OWNER` and `ADMIN`. User statuses are `ACTIVE`, `SUSPENDED` and `INACTIVE`. Owner statuses are `PENDING`, `APPROVED` and `REJECTED`.
 
 Use `bun run db:migrate` locally and `bun run db:deploy` with the migration database credentials during deployment. Keep a separate runtime role with only the table privileges the app requires. Generate Prisma Client with `bun run db:generate`. Use [the schema](../prisma/schema.prisma) as the source of field-level detail.
+
+## Phase 2 schema
+
+```mermaid
+erDiagram
+  USER ||--o{ VENUE : owns
+  VENUE ||--o{ PITCH : contains
+  VENUE ||--o{ VENUE_IMAGE : displays
+  VENUE ||--o{ VENUE_AMENITY : links
+  AMENITY ||--o{ VENUE_AMENITY : catalogs
+  PITCH ||--o{ OPERATING_HOURS : repeats
+  PITCH ||--o{ SCHEDULE_EXCEPTION : overrides
+  PITCH ||--o{ PRICING_RULE : prices
+  PITCH ||--o{ SLOT : generates
+  USER ||--o{ FAVORITE : saves
+  VENUE ||--o{ FAVORITE : appears_in
+```
+
+| Model                                | Data and constraints                                                                                                                                                                                                               |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Venue                                | Owner, unique stable slug, contact and location, timezone, moderation and publication timestamps. Database checks require paired coordinates and allow a publication timestamp only on an active approved record.                  |
+| Pitch                                | One independently managed ground, integer paise base rate, type, surface, dimensions, capacity and aligned booking-duration limits.                                                                                                |
+| VenueImage                           | Unique storage key, public URL and alt text. A partial unique index ensures at most one cover per venue.                                                                                                                           |
+| MediaCleanup                         | Durable cleanup queue for interrupted uploads and pending deletes.                                                                                                                                                                 |
+| Amenity and VenueAmenity             | Seeded catalog and composite-key venue membership.                                                                                                                                                                                 |
+| OperatingHours and ScheduleException | Local-minute intervals for recurring weekdays and per-pitch date overrides. Calendar dates use PostgreSQL `DATE`.                                                                                                                  |
+| PricingRule                          | Local weekday and clock bands, inclusive effective dates, paise hourly rates and explicit priority. Equal-priority overlaps are rejected under the pitch lock.                                                                     |
+| Slot                                 | UTC `timestamptz` endpoints, fixed slot and hourly rates in paise, currency and inventory state. A unique pitch/start pair, a positive interval check and a GiST exclusion constraint prevent duplicate and overlapping intervals. |
+| Favorite                             | Unique customer/venue relationship and creation time.                                                                                                                                                                              |
+
+The migration adds indexes for owner listings, public visibility, text search, active pitch types, venue amenities, and pitch/status/start slot lookups. Public discovery uses a PostgreSQL text vector and server-side pagination. The exclusion constraint uses `btree_gist`, which the migration role or database operator must be able to install. The Phase 2 migration adds tables and constraints while preserving Phase 1 records.
+
+Availability queries use the generated client and parameterized SQL where needed. Venue and pitch ownership are immutable through public HTTP inputs. Archive and pitch deactivation keep historical records.

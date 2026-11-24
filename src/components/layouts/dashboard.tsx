@@ -26,6 +26,7 @@ import {
 import { dashboardPath } from "@/config/navigation";
 import type { UserRole } from "@/generated/prisma/enums";
 import { requireDashboardRole } from "@/lib/auth";
+import { ownerVenueCounts } from "@/modules/venues/venue.repository";
 import { accountCounts } from "@/modules/users/admin-repository";
 import { findProfile, type Profile } from "@/modules/users/repository";
 import { AdminData } from "./admin-data";
@@ -53,9 +54,15 @@ const verification = {
 export async function Dashboard({
   role,
   section,
+  content,
+  pageTitle,
+  pageDescription,
 }: {
   role: UserRole;
   section?: string;
+  content?: React.ReactNode;
+  pageTitle?: string;
+  pageDescription?: string;
 }) {
   const user = await requireDashboardRole(role);
   const profile = await findProfile(user.id);
@@ -66,6 +73,13 @@ export async function Dashboard({
     dashboardSections[role].find(({ id }) => id === section) ??
     dashboardSections[role][0];
   const overview = selected.id === "overview";
+  if (
+    !content &&
+    (selected.id === "turfs" ||
+      selected.id === "favorites" ||
+      (role === "OWNER" && selected.id === "pricing"))
+  )
+    redirect(dashboardHref(role, selected.id));
   const adminData =
     role === "ADMIN" &&
     (selected.id === "users" ||
@@ -118,28 +132,32 @@ export async function Dashboard({
                   ]
             }
           />
-          <PageHeader title={title} description={description} />
-          {overview ? (
-            <Overview profile={profile} />
-          ) : adminData ? (
-            <AdminData section={adminData} />
-          ) : selected.id === "profile" || selected.id === "settings" ? (
-            <AccountSettings
-              profile={profile}
-              settings={selected.id === "settings"}
-            />
-          ) : (
-            <EmptyState
-              title={selected.label}
-              description={
-                role === "OWNER" &&
-                profile.ownerProfile?.verificationStatus !== "APPROVED"
-                  ? "This feature is planned for a future release and requires owner approval."
-                  : "This feature is planned for a future release."
-              }
-              icon={selected.icon}
-            />
-          )}
+          <PageHeader
+            title={pageTitle ?? title}
+            description={pageDescription ?? description}
+          />
+          {content ??
+            (overview ? (
+              <Overview profile={profile} />
+            ) : adminData ? (
+              <AdminData section={adminData} />
+            ) : selected.id === "profile" || selected.id === "settings" ? (
+              <AccountSettings
+                profile={profile}
+                settings={selected.id === "settings"}
+              />
+            ) : (
+              <EmptyState
+                title={selected.label}
+                description={
+                  role === "OWNER" &&
+                  profile.ownerProfile?.verificationStatus !== "APPROVED"
+                    ? "This feature is planned for a future release and requires owner approval."
+                    : "This feature is planned for a future release."
+                }
+                icon={selected.icon}
+              />
+            ))}
         </main>
       </div>
     </div>
@@ -171,6 +189,10 @@ async function Overview({ profile }: { profile: Profile }) {
   }
   if (profile.role === "OWNER" && profile.ownerProfile) {
     const status = verification[profile.ownerProfile.verificationStatus];
+    const venueCounts =
+      profile.ownerProfile.verificationStatus === "APPROVED"
+        ? await ownerVenueCounts(profile.id)
+        : null;
     return (
       <div className="grid gap-5">
         <Card className="p-6">
@@ -193,11 +215,32 @@ async function Overview({ profile }: { profile: Profile }) {
             </div>
           </dl>
         </Card>
-        <EmptyState
-          title="Your cricket turfs"
-          description="Turf listing and schedule management will open in a future release."
-          icon={accountIcons.business}
-        />
+        {venueCounts && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatCard
+                label="Active venue records"
+                value={venueCounts[0]}
+                icon={accountIcons.business}
+              />
+              <StatCard
+                label="Published venues"
+                value={venueCounts[1]}
+                icon={accountIcons.verification}
+              />
+              <StatCard
+                label="Venues in review"
+                value={venueCounts[2]}
+                icon={CalendarDays}
+              />
+            </div>
+            <div>
+              <Button asChild>
+                <Link href="/owner/venues">Manage venues</Link>
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -214,7 +257,7 @@ async function Overview({ profile }: { profile: Profile }) {
       />
       <div className="flex flex-wrap gap-3">
         <Button asChild>
-          <Link href="/#turfs">Explore sample turfs</Link>
+          <Link href="/turfs">Explore cricket turfs</Link>
         </Button>
         <Button asChild variant="outline">
           <Link href={dashboardHref(profile.role, "profile")}>

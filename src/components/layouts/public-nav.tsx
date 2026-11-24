@@ -19,7 +19,7 @@ export function PublicNav() {
           aria-label="Primary"
           className="hidden items-center gap-8 text-sm font-semibold md:flex"
         >
-          <Link href="/#turfs" className="hover:text-brand-dot">
+          <Link href="/turfs" className="hover:text-brand-dot">
             Explore turfs
           </Link>
           <Link href="/#how-it-works" className="hover:text-brand-dot">
@@ -55,7 +55,7 @@ export function PublicNav() {
                 <nav aria-label="Mobile primary" className="grid gap-2">
                   <DialogClose asChild>
                     <Link
-                      href="/#turfs"
+                      href="/turfs"
                       className="rounded-lg p-2 hover:bg-background"
                     >
                       Explore turfs

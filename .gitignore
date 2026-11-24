@@ -44,3 +44,4 @@ next-env.d.ts
 /.pitchmate-mail/
 /playwright-report/
 /test-results/
+/.pitchmate-media/

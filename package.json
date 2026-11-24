@@ -16,7 +16,10 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:provision-admin": "bun prisma/provision-admin.ts"
+    "db:provision-admin": "bun prisma/provision-admin.ts",
+    "slots:extend": "bun scripts/extend-availability.ts",
+    "db:seed:demo": "bun prisma/seed.ts --demo",
+    "db:verify-owner": "bun scripts/verify-owner.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.3",

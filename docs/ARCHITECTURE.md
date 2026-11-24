@@ -75,4 +75,31 @@ pitchmate/
 └── prisma.config.ts
 ```
 
-`venues`, `bookings`, `pricing` and `payments` are reserved for future domain modules. The customer, owner and admin dashboards share layout primitives and define separate navigation and server-side access rules.
+`venues` and `pricing` now serve the marketplace. `bookings` and `payments` are reserved for subsequent phases. The customer, owner and admin dashboards share layout primitives and define separate navigation and server-side access rules.
+
+## Phase 2
+
+```mermaid
+flowchart LR
+  Guest["Public discovery and detail"] --> Discovery["Venue search repository"]
+  Owner["Verified owner dashboard"] --> Venue["Venue and pitch services"]
+  Admin["Admin reviewer"] --> Review["Venue review service"]
+  Customer["Customer favorites"] --> Favorite["Favorites service"]
+  Venue --> Media["Media service"]
+  Media --> Storage["Cloudinary or local files"]
+  Venue --> Generator["Availability reconciliation"]
+  Job["Scheduled worker"] --> Generator
+  Job --> Media
+  Generator --> Price["Pricing rule resolution"]
+  Discovery --> PG[("PostgreSQL")]
+  Venue --> PG
+  Review --> PG
+  Favorite --> PG
+  Generator --> PG
+```
+
+The new domains live under `src/modules/{venues,pitches,amenities,media,schedules,availability,pricing,favorites,admin}`. `venue.repository.ts` owns discovery, venue row locks and audit inserts. The pitch service coordinates mutations across schedules, pricing and availability. The availability module exposes a deterministic generator, reconciliation, and a bounded rolling job. Media files live outside PostgreSQL.
+
+The main entry points are `src/app/(public)/turfs`, `src/app/owner/venues`, `src/app/admin/venues`, `src/app/(customer)/dashboard/favorites`, and their corresponding API routes. Shared marketplace UI is in `src/components/venues`. The public pages use server-side queries with URL-driven filters. Leaflet and management forms are interactive client components.
+
+Venue descriptions, amenity assignments, and galleries use the public data cache. Every detail lookup first checks publication in PostgreSQL and includes the published row's revision in the cache key. Material edits and moderation change the revision or remove publication. Pitch schedules, prices, and slot availability use fresh database reads.

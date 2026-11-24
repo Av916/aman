@@ -23,3 +23,12 @@ Set a canonical HTTPS origin, share the Auth.js secret across replicas, and stor
 Delete expired rate-limit and verification rows periodically. Apply a retention policy to old reset rows and audit records according to the deployment's requirements. Keep the development mail directory private and clear it after testing.
 
 The local mail adapter is for local development and testing. Resend delivery is best-effort after the response. Monitor delivery failures and plan for a durable outbox before relying on automated retries. Administrative MFA, a full CSP for scripts, and an operational security review remain deployment follow-ups.
+
+## Phase 2 access and media
+
+- Verified-owner guards apply at owner API and page entry points. Mutations lock and verify the venue owner on the server, then validate subresources against the locked venue or pitch. The request schemas reject unknown mutable fields.
+- Admin-only transitions validate the current state and append audit events in the same transaction. The operator owner-verification command requires an active owner with a verified email and records a separate audit event.
+- Public projections include published venue contact details entered for display and omit private owner identity, storage keys and audit rows. Local image URLs enforce the venue's visibility or owner/admin access. Cloudinary URLs should be treated as externally shareable once issued.
+- Image uploads are origin-checked, rate-limited and bounded before decoding. The server validates decoded format, pixels, animation and MIME, strips metadata, and converts files to WebP. Cloudinary credentials stay server-side. Image references and cleanup changes commit transactionally.
+- Public search, public availability, management writes, favorites and moderation use database-backed rate limits. Consent precedes browser geolocation. The availability job uses a distinct bearer secret and supports resumable batches.
+- Schedule, price, and inventory mutations acquire venue and pitch locks in that order. Held and booked rows remain protected, and PostgreSQL rejects overlapping UTC ranges.

@@ -52,7 +52,7 @@ async function login(page: Page, email: string, secret = password) {
   await page.getByRole("button", { name: "Log in", exact: true }).click();
 }
 
-test("mobile landing page labels demonstration search and offers navigation", async ({
+test("mobile landing page leads to live discovery and offers navigation", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -65,12 +65,10 @@ test("mobile landing page labels demonstration search and offers navigation", as
     page.getByRole("dialog").getByRole("link", { name: "How it works" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByLabel("Location").selectOption("Bengaluru");
-  await page.getByRole("button", { name: "Preview search" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "Live search opens in Phase 2",
-  );
-  await expect(page.getByText("Demonstration listings")).toBeVisible();
+  await page.getByRole("button", { name: "Search turfs" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Explore cricket turfs" }),
+  ).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);

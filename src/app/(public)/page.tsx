@@ -15,37 +15,15 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/branding/logo";
 import { PublicNav } from "@/components/layouts/public-nav";
-import { TurfPreviewSearch } from "@/components/forms/turf-preview-search";
-import { Badge } from "@/components/ui/badge";
+import { TurfSearch } from "@/components/forms/turf-preview-search";
+import { listCities } from "@/modules/venues/public-http";
+import { discoverVenues } from "@/modules/venues/venue.repository";
+import { discoveryQuery } from "@/modules/venues/venue.validation";
+import { VenueCard } from "@/components/venues/venue-card";
+import { currentUser } from "@/lib/auth";
+import { savedVenueIds } from "@/modules/favorites/service";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 
-const turfs = [
-  {
-    name: "Boundary Box Arena",
-    location: "Whitefield, Bengaluru",
-    type: "Box cricket",
-    price: "₹1,200",
-    image: "boundary",
-    alt: "Enclosed cricket turf beside city buildings",
-  },
-  {
-    name: "Willow Greens",
-    location: "Gachibowli, Hyderabad",
-    type: "Outdoor ground",
-    price: "₹1,500",
-    image: "willow",
-    alt: "Open cricket ground bordered by palms",
-  },
-  {
-    name: "Highline Cricket Club",
-    location: "Baner, Pune",
-    type: "Rooftop turf",
-    price: "₹950",
-    image: "highline",
-    alt: "Rooftop cricket turf under evening floodlights",
-  },
-];
 const steps = [
   {
     title: "Find your ground",
@@ -70,7 +48,7 @@ const questions = [
   {
     question: "Can I book a cricket turf right now?",
     answer:
-      "You can create a PitchMate account and explore sample listings. Live search, availability and reservations are planned for Phase 2.",
+      "You can browse published turfs and view available slots. Online reservations will open in a future release.",
   },
   {
     question: "How do I become a turf owner on PitchMate?",
@@ -80,7 +58,7 @@ const questions = [
   {
     question: "Are the listed grounds and prices real?",
     answer:
-      "The featured grounds, photos and prices are demonstrations. They show what a future listing will look like.",
+      "Published listings show venue information and hourly rates supplied by verified turf owners.",
   },
   {
     question: "Can I sign up as a player today?",
@@ -89,7 +67,20 @@ const questions = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [cities, featured, user] = await Promise.all([
+    listCities(),
+    discoverVenues(discoveryQuery.parse({ sort: "recent" })),
+    currentUser(),
+  ]);
+  const turfs = featured.venues.slice(0, 3);
+  const saved =
+    user?.role === "CUSTOMER"
+      ? await savedVenueIds(
+          user.id,
+          turfs.map((venue) => venue.id),
+        )
+      : [];
   return (
     <>
       <PublicNav />
@@ -138,7 +129,7 @@ export default function HomePage() {
           id="turf-search"
           className="relative z-10 mx-auto -mt-10 max-w-[69rem] scroll-mt-6 px-5 sm:px-8"
         >
-          <TurfPreviewSearch />
+          <TurfSearch cities={cities} />
         </div>
 
         <section
@@ -151,47 +142,29 @@ export default function HomePage() {
                 Featured turfs
               </h2>
               <p className="mt-2 text-muted">
-                A preview of how grounds will appear on PitchMate.
+                Recently published grounds on PitchMate.
               </p>
             </div>
-            <Badge>Demonstration listings</Badge>
+            <Button asChild variant="outline">
+              <Link href="/turfs">Explore all turfs</Link>
+            </Button>
           </div>
-          <div className="grid gap-5 md:grid-cols-3">
-            {turfs.map((turf) => (
-              <Card key={turf.name} className="overflow-hidden">
-                <div className="relative aspect-[1.65] bg-highlight">
-                  <Image
-                    alt={turf.alt}
-                    src={`/images/${turf.image}.webp`}
-                    fill
-                    sizes="(max-width: 767px) 92vw, (max-width: 1280px) 30vw, 385px"
-                    className="object-cover"
-                  />
-                  <Badge className="absolute top-3 left-3 border-transparent bg-white text-[#17211c]">
-                    {turf.type}
-                  </Badge>
-                </div>
-                <div className="p-4 sm:p-5">
-                  <h3 className="text-xl font-extrabold tracking-tight">
-                    {turf.name}
-                  </h3>
-                  <p className="mt-2 flex items-center gap-1.5 text-sm text-muted">
-                    <MapPin size={15} aria-hidden="true" />
-                    {turf.location}
-                  </p>
-                  <p className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4 text-sm text-muted">
-                    <span>Sample rate</span>
-                    <span>
-                      <strong className="text-lg text-foreground">
-                        {turf.price}
-                      </strong>{" "}
-                      / hour
-                    </span>
-                  </p>
-                </div>
-              </Card>
-            ))}
-          </div>
+          {turfs.length ? (
+            <div className="grid gap-5 md:grid-cols-3">
+              {turfs.map((venue) => (
+                <VenueCard
+                  key={venue.id}
+                  venue={venue}
+                  role={user?.role}
+                  saved={saved.includes(venue.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-border bg-surface p-5 text-muted">
+              Published grounds will appear here.
+            </p>
+          )}
         </section>
 
         <section
@@ -323,7 +296,7 @@ export default function HomePage() {
             aria-label="Footer"
             className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold"
           >
-            <Link href="#turfs">Explore turfs</Link>
+            <Link href="/turfs">Explore turfs</Link>
             <Link href="#faq">FAQ</Link>
             <Link href="/register-owner">For owners</Link>
             <Link href="/login">Log in</Link>
