@@ -25,7 +25,6 @@ export const metadata: Metadata = {
   description:
     "PitchMate brings cricket players and turf owners together. Register as a player or get your facility ready to list.",
   icons: { icon: "/logo/mark.svg", apple: "/logo/icon-192.png" },
-  manifest: "/manifest.webmanifest",
 };
 
 export default async function RootLayout({

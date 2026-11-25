@@ -12,7 +12,6 @@ for (const path of [
   "/api/health/ready",
   "/",
   "/robots.txt",
-  "/manifest.webmanifest",
 ]) {
   let passed = false;
   for (let attempt = 0; attempt < 8; attempt++) {

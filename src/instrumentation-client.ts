@@ -10,10 +10,20 @@ if (process.env.NODE_ENV === "production") {
   };
   window.addEventListener("error", report);
   window.addEventListener("unhandledrejection", report);
-  if ("serviceWorker" in navigator)
-    window.addEventListener(
-      "load",
-      () => void navigator.serviceWorker.register("/sw.js").catch(() => {}),
-      { once: true },
-    );
+}
+
+// Retire the offline worker for browsers that previously installed it.
+if ("serviceWorker" in navigator) {
+  void navigator.serviceWorker
+    .getRegistration("/")
+    .then(async (registration) => {
+      const worker =
+        registration?.active ??
+        registration?.waiting ??
+        registration?.installing;
+      if (worker?.scriptURL !== new URL("/sw.js", location.origin).href) return;
+      await registration?.unregister();
+      await caches.delete("pitchmate-public-offline-v1");
+    })
+    .catch(() => {});
 }

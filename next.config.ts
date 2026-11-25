@@ -24,10 +24,6 @@ const nextConfig: NextConfig = {
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
       {
-        source: "/sw.js",
-        headers: [{ key: "Cache-Control", value: "no-cache" }],
-      },
-      {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },

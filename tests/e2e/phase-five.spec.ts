@@ -60,32 +60,3 @@ test("public pages preserve keyboard navigation and selected WCAG AA rules", asy
     ).toEqual([]);
   }
 });
-
-test("the offline worker stores only the public fallback", async ({
-  page,
-  context,
-}) => {
-  await page.goto("/");
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-  });
-  await page.reload();
-  await expect
-    .poll(() =>
-      page.evaluate(() => Boolean(navigator.serviceWorker.controller)),
-    )
-    .toBe(true);
-  await context.setOffline(true);
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "You’re offline" }),
-  ).toBeVisible();
-  const keys = await page.evaluate(async () => {
-    const cache = await caches.open("pitchmate-public-offline-v1");
-    return (await cache.keys()).map((item) => new URL(item.url).pathname);
-  });
-  expect(keys).toEqual(["/offline.html"]);
-  await expect(
-    page.goto("/checkout/00000000-0000-4000-8000-000000000001"),
-  ).rejects.toThrow();
-});
