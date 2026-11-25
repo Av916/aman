@@ -177,6 +177,16 @@ test("player finds a pitch, books consecutive slots with equipment, pays and dow
     expect(await calendar.text()).toContain("BEGIN:VEVENT");
     await page.getByRole("link", { name: "My Bookings" }).click();
     await expect(page.getByRole("heading", { name: venueName })).toBeVisible();
+    await db.query(
+      `UPDATE "Booking"
+       SET "startAt" = now() - interval '2 hours', "endAt" = now() - interval '1 hour'
+       WHERE id = $1`,
+      [bookingId],
+    );
+    await page.reload();
+    await expect(page.getByRole("heading", { name: venueName })).toHaveCount(0);
+    await page.getByRole("link", { name: "Past confirmed" }).click();
+    await expect(page.getByRole("heading", { name: venueName })).toBeVisible();
     await page
       .getByRole("link", { name: "Notifications", exact: true })
       .click();

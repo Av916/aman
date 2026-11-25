@@ -4,12 +4,12 @@ Verified completion = COMPLETE ÷ applicable requirements × 100. Explicit exclu
 
 | Phase   | Total Requirements | Complete | Partial | Missing | Broken | Unverified | Blocked | Completion % | Not applicable |
 | ------- | -----------------: | -------: | ------: | ------: | -----: | ---------: | ------: | -----------: | -------------: |
-| Phase 1 |                 21 |       18 |       0 |       0 |      0 |          2 |       1 |       85.71% |              0 |
-| Phase 2 |                 26 |       22 |       3 |       0 |      0 |          1 |       0 |       84.62% |              0 |
-| Phase 3 |                 29 |       25 |       2 |       0 |      1 |          0 |       1 |       86.21% |              0 |
-| Phase 4 |                 37 |       23 |       8 |       1 |      0 |          5 |       0 |       62.16% |              0 |
-| Phase 5 |                 50 |       27 |      13 |       0 |      1 |          0 |       9 |       54.00% |              1 |
-| Overall |                163 |      115 |      26 |       1 |      2 |          8 |      11 |       70.55% |              1 |
+| Phase 1 |                 21 |       20 |       0 |       0 |      0 |          0 |       1 |       95.24% |              0 |
+| Phase 2 |                 26 |       23 |       3 |       0 |      0 |          0 |       0 |       88.46% |              0 |
+| Phase 3 |                 29 |       26 |       2 |       0 |      0 |          0 |       1 |       89.66% |              0 |
+| Phase 4 |                 37 |       25 |       8 |       1 |      0 |          3 |       0 |       67.57% |              0 |
+| Phase 5 |                 49 |       26 |      13 |       0 |      1 |          0 |       9 |       53.06% |              2 |
+| Overall |                162 |      120 |      26 |       1 |      1 |          3 |      11 |       74.07% |              2 |
 
 All five phases have open requirements. The overall figure weights each applicable requirement equally.
 

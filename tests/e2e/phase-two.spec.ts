@@ -197,6 +197,9 @@ test("verified owner onboards a venue, admin approves it, and a player saves it"
       `/turfs?q=${encodeURIComponent(title)}&city=Chandigarh&date=${date}`,
     );
     await expect(guest.getByRole("heading", { name: title })).toBeVisible();
+    expect(
+      await guest.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
     await guest.getByRole("button", { name: "Filters", exact: true }).click();
     await expect(
       guest.getByRole("dialog", { name: "Filter turfs" }),
@@ -242,6 +245,20 @@ test("verified owner onboards a venue, admin approves it, and a player saves it"
     expect((await request.get(`/api/venues/${record.slug}`)).status()).toBe(
       404,
     );
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/owner/venues");
+    await expect(
+      page.getByRole("link", { name: "Create venue" }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
+    await page.getByRole("link", { name: "Create venue" }).click();
+    await expect(page.getByLabel("Venue name")).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
   } finally {
     await fixture.end();
   }

@@ -11,9 +11,10 @@ import {
 } from "@/components/bookings/booking-summary";
 import { human } from "@/components/venues/format";
 import { bookingList } from "@/modules/bookings/booking.repository";
-import { bookingListQuery } from "@/modules/bookings/booking.validation";
+import { bookingHistoryQuery } from "@/modules/bookings/booking.validation";
 const tabs = {
   CONFIRMED: "Upcoming",
+  PAST_CONFIRMED: "Past confirmed",
   COMPLETED: "Completed",
   CHECKED_IN: "Checked in",
   RESCHEDULED: "Rescheduled",
@@ -29,11 +30,17 @@ export default async function BookingHistory({
   searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const user = await requireDashboardRole("CUSTOMER");
-  const parsed = bookingListQuery.safeParse(await searchParams);
+  const parsed = bookingHistoryQuery.safeParse(await searchParams);
   const { status, page } = parsed.success
     ? parsed.data
-    : bookingListQuery.parse({});
-  const { bookings, pagination } = await bookingList(user.id, status, page);
+    : bookingHistoryQuery.parse({});
+  const pastConfirmed = status === "PAST_CONFIRMED";
+  const { bookings, pagination } = await bookingList(
+    user.id,
+    pastConfirmed ? "CONFIRMED" : status,
+    page,
+    pastConfirmed ? "past" : "upcoming",
+  );
   return (
     <Dashboard
       role="CUSTOMER"

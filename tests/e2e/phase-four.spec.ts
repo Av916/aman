@@ -113,9 +113,19 @@ test("owner manages a walk-in booking from the calendar through payment and atte
       .getByRole("combobox", { name: "Venue", exact: true })
       .selectOption({ label: venueName });
     await page.getByLabel("Date", { exact: true }).fill(stageDate);
+    const calendarView = page.getByRole("combobox", {
+      name: "View",
+      exact: true,
+    });
+    await calendarView.selectOption("week");
+    await expect(
+      page.getByRole("button", { name: /Centre wicket.*Available/ }),
+    ).toBeVisible();
+    await calendarView.selectOption("month");
     await page
-      .getByRole("combobox", { name: "View", exact: true })
-      .selectOption("day");
+      .getByRole("button", { name: "0 bookings · 1 open slots", exact: true })
+      .click();
+    await expect(calendarView).toHaveValue("day");
     await page
       .getByRole("button", { name: /Centre wicket.*Available/ })
       .click();
@@ -260,12 +270,27 @@ test("staff accepts an invitation, creates an assigned booking, and cannot expor
     const calendar = await staff.page.request.get(
       `/api/owner/calendar?venueId=${ids.venue}&from=${stageDate}&to=${stageDate}`,
     );
-    expect((await calendar.json()).data.bookings[0].customerName).toBe(
-      "Phone booking",
+    const [phoneBooking] = (await calendar.json()).data.bookings;
+    expect(phoneBooking.customerName).toBe("Phone booking");
+    expect(phoneBooking.customerPhone).toBeUndefined();
+    const bookingId = phoneBooking.id;
+    const noShowUrl = `/api/owner/bookings/${bookingId}/no-show`;
+    expect((await mutate(staff.page, noShowUrl, {})).status()).toBe(409);
+    await db.query(
+      `UPDATE "Booking"
+       SET "startAt" = now() - interval '31 minutes', "endAt" = now() - interval '1 minute'
+       WHERE id = $1`,
+      [bookingId],
     );
-    expect(
-      (await calendar.json()).data.bookings[0].customerPhone,
-    ).toBeUndefined();
+    expect((await mutate(staff.page, noShowUrl, {})).status()).toBe(200);
+    const noShow = await db.query(
+      'SELECT status, "noShowAt" FROM "Booking" WHERE id = $1',
+      [bookingId],
+    );
+    expect(noShow.rows[0]).toMatchObject({
+      status: "NO_SHOW",
+      noShowAt: expect.any(Date),
+    });
     const savedInvite = await db.query(
       'SELECT "tokenHash" FROM "StaffInvitation" WHERE id = $1',
       [invitation.id],

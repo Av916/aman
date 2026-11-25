@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 const password = "drive-it-over-long-off";
@@ -82,6 +83,47 @@ test("mobile landing page leads to live discovery and offers navigation", async 
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
+});
+
+test("light and dark themes are keyboard accessible and persist across reloads", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  const root = page.locator("html");
+  const themeToggle = page.getByRole("button", { name: "Switch color theme" });
+  await expect(root).toHaveClass(/\blight\b/);
+
+  for (const { theme, key } of [
+    { theme: "dark", key: "Enter" },
+    { theme: "light", key: "Space" },
+  ]) {
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("link", { name: "Skip to content" }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(themeToggle).toBeFocused();
+    await page.keyboard.press(key);
+    await expect(root).toHaveClass(new RegExp(`\\b${theme}\\b`));
+
+    await page.emulateMedia({
+      colorScheme: theme === "dark" ? "light" : "dark",
+    });
+    await page.reload();
+    await expect(root).toHaveClass(new RegExp(`\\b${theme}\\b`));
+    const audit = await new AxeBuilder({ page })
+      .withRules("color-contrast")
+      .analyze();
+    expect(
+      audit.violations.flatMap(({ nodes }) =>
+        nodes.map(({ target }) => target),
+      ),
+      `${theme} mode color contrast`,
+    ).toEqual([]);
+  }
 });
 
 test("health, unauthenticated access, body validation, and origin protection", async ({

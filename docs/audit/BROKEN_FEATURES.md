@@ -2,7 +2,7 @@
 
 ## F01 Past reservations in Upcoming
 
-**P1 · BROKEN.** A synthetic customer reservation with a past interval and `CONFIRMED` status appeared in the same query used by the Upcoming tab. The view labels the status as Upcoming and the repository only filters by status. The attendance worker completes checked-in bookings once their end time passes. An unattended, unmarked reservation can remain Confirmed. This is a booking history defect. The tested slot acquisition invariant still held under contention. [History page](../../src/app/%28customer%29/dashboard/bookings/page.tsx#L15) · [History query](../../src/modules/bookings/booking.repository.ts#L133) · [Attendance job](../../src/modules/jobs/service.ts#L33)
+**Fixed.** Upcoming shows confirmed reservations whose scheduled end is in the future. Past confirmed shows elapsed bookings that still have the Confirmed status. The browser test verifies both views using the same booking before and after changing its scheduled time. [Regression test](../../tests/e2e/phase-three.spec.ts)
 
 ## F02 Terminal refund retry returns to failed
 
@@ -18,7 +18,7 @@
 
 ## F07 Availability latency target missed in the recorded run
 
-**P2 · BROKEN performance criterion.** The repository’s Phase 5 benchmark recorded 501 ms normal-load and 514 ms soak p95 for availability against a 500 ms goal. This audit’s new 100-user run covered landing and discovery only. Establish a fresh SRS-sized inventory dataset and rerun the route-specific benchmark in staging. [Historical results](../LOAD_TESTING.md#L14) · [Targets](../PHASE_5.md#L51)
+**P2 · BROKEN performance criterion.** The repository’s Phase 5 benchmark recorded 501 ms normal-load and 514 ms soak p95 for availability against a 500 ms goal. A follow-up isolated loopback run against a small browser-test fixture recorded 1,966 ms availability p95 across 225 requests with no errors or rate limits. The 20-second run rotated 100 virtual users across the landing page, discovery, venue details, and availability. Representative staging verification is pending. [Historical results](../LOAD_TESTING.md#L14) · [Targets](../PHASE_5.md#L51)
 
 ## F08 Rescheduling boundaries
 

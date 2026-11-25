@@ -134,16 +134,24 @@ export async function bookingList(
   customerId: string,
   status: BookingView["status"],
   page: number,
+  confirmedWindow?: "upcoming" | "past",
 ) {
   const size = 12;
-  const where = { customerId, status };
+  const where: Prisma.BookingWhereInput = { customerId, status };
+  if (status === "CONFIRMED" && confirmedWindow) {
+    const now = new Date();
+    where.endAt = confirmedWindow === "past" ? { lte: now } : { gt: now };
+  }
   const db = getPrisma();
   const items = await db.booking.findMany({
     where,
     include: viewInclude,
     omit: privateBookingFields,
     orderBy: [
-      { startAt: status === "CONFIRMED" ? "asc" : "desc" },
+      {
+        startAt:
+          status === "CONFIRMED" && confirmedWindow !== "past" ? "asc" : "desc",
+      },
       { id: "desc" },
     ],
     skip: (page - 1) * size,

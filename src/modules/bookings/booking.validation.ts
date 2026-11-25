@@ -46,6 +46,12 @@ export const bookingListQuery = z.object({
   status: z.enum(BookingStatus).default("CONFIRMED"),
   page: z.coerce.number().int().min(1).max(1000).default(1),
 });
+export const bookingHistoryQuery = bookingListQuery.extend({
+  status: z
+    .enum(BookingStatus)
+    .or(z.literal("PAST_CONFIRMED"))
+    .default("CONFIRMED"),
+});
 export const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/);
 export type Selection = z.output<typeof selection>;
 export type CreateBookingInput = z.output<typeof createBookingInput>;
