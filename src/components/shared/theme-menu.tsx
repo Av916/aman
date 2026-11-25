@@ -1,33 +1,29 @@
 "use client";
-import { SunMoon } from "lucide-react";
+
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
-export function ThemeMenu() {
+export function ThemeToggle() {
   const { setTheme } = useTheme();
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Choose color theme">
-          <SunMoon size={19} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        {["Light", "Dark", "System"].map((theme) => (
-          <DropdownMenuItem
-            key={theme}
-            onSelect={() => setTheme(theme.toLowerCase())}
-          >
-            {theme}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="shrink-0"
+      aria-label="Switch color theme"
+      onClick={() =>
+        setTheme(
+          document.documentElement.classList.contains("dark")
+            ? "light"
+            : "dark",
+        )
+      }
+    >
+      <Moon className="size-[19px] dark:hidden" aria-hidden="true" />
+      <Sun className="hidden size-[19px] dark:block" aria-hidden="true" />
+    </Button>
   );
 }

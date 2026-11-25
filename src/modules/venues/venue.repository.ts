@@ -6,6 +6,7 @@ import {
   managementInclude,
   publicDetailSelect,
   publicVenueWhere,
+  type VenueCard,
 } from "./venue.types";
 import { venueSettings } from "./settings";
 import type { DiscoveryQuery } from "./venue.validation";
@@ -26,6 +27,35 @@ export function publicVenue(slug: string) {
     where: { ...publicVenueWhere, slug },
     select: publicDetailSelect,
   });
+}
+
+export async function featuredVenues(): Promise<VenueCard[]> {
+  const venues = await getPrisma().venue.findMany({
+    where: { ...publicVenueWhere, pitches: { some: { isActive: true } } },
+    orderBy: [{ publishedAt: "desc" }, { id: "asc" }],
+    take: 3,
+    select: {
+      ...cardVenueSelect,
+      pitches: {
+        where: { isActive: true },
+        orderBy: [{ basePrice: "asc" }, { id: "asc" }],
+        take: 1,
+        select: { basePrice: true, pitchType: true },
+      },
+    },
+  });
+  return venues.flatMap(({ pitches: [pitch], ...venue }) =>
+    pitch
+      ? [
+          {
+            ...venue,
+            startingPrice: pitch.basePrice,
+            pitchType: pitch.pitchType,
+            distanceKm: null,
+          },
+        ]
+      : [],
+  );
 }
 
 export async function lockVenue(
@@ -233,15 +263,32 @@ export async function discoverVenues(query: DiscoveryQuery, exclude?: string) {
       ) eligible ON true
       WHERE ${Prisma.join(filters, " AND ")}
     `;
-      const rows = await tx.$queryRaw<
-        { id: string; price: number; type: string; distance: number | null }[]
+      const [{ rows, total }] = await tx.$queryRaw<
+        {
+          rows: {
+            id: string;
+            price: number;
+            type: string;
+            distance: number | null;
+          }[];
+          total: number;
+        }[]
       >`
-      WITH eligible AS (${eligible})
-      SELECT id, price, type, distance FROM eligible ORDER BY ${sorts[q.sort]}, id LIMIT ${size} OFFSET ${(q.page - 1) * size}
-    `;
-      const [{ total }] = await tx.$queryRaw<
-        { total: number }[]
-      >`SELECT count(*)::int AS total FROM (${eligible}) matches`;
+        WITH eligible AS NOT MATERIALIZED (${eligible})
+        SELECT
+          (SELECT count(*)::int FROM eligible) AS total,
+          COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object('id', id, 'price', price, 'type', type, 'distance', distance)
+              ORDER BY ${sorts[q.sort]}, id
+            )
+            FROM (
+              SELECT * FROM eligible
+              ORDER BY ${sorts[q.sort]}, id
+              LIMIT ${size} OFFSET ${(q.page - 1) * size}
+            ) page
+          ), '[]'::jsonb) AS rows
+      `;
       const venues = await tx.venue.findMany({
         where: { id: { in: rows.map((row) => row.id) } },
         select: cardVenueSelect,

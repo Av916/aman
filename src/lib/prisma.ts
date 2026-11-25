@@ -12,7 +12,7 @@ export function getPrisma() {
     adapter: new PrismaPg({
       connectionString: getEnv().DATABASE_URL,
       max: deploymentSettings().DB_POOL_MAX,
-      connectionTimeoutMillis: 3000,
+      connectionTimeoutMillis: 10_000,
       idleTimeoutMillis: 30000,
       query_timeout: 10000,
       ...(process.env.APP_ENV === "production" ||
@@ -20,5 +20,7 @@ export function getPrisma() {
         ? {}
         : { statement_timeout: 5000, options: "-c timezone=UTC" }),
     }),
+    // Allow time to connect to hosted PostgreSQL and then begin the transaction.
+    transactionOptions: { maxWait: 15_000 },
   }));
 }

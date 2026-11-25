@@ -56,10 +56,20 @@ test("mobile landing page leads to live discovery and offers navigation", async 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: /Your Game.*Your Pitch/ }),
   ).toBeVisible();
+  const themeToggle = page.getByRole("button", { name: "Switch color theme" });
+  await themeToggle.click();
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+  await expect(themeToggle.locator("svg.lucide-sun")).toBeVisible();
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+  await themeToggle.click();
+  await expect(page.locator("html")).toHaveClass(/\blight\b/);
+  await expect(themeToggle.locator("svg.lucide-moon")).toBeVisible();
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(
     page.getByRole("dialog").getByRole("link", { name: "How it works" }),
@@ -199,6 +209,7 @@ test("a development-provisioned admin can read the admin dashboard", async ({
   await login(page, adminEmail, adminPassword);
   await expect(page).toHaveURL(/\/admin\/dashboard$/);
   await expect(page.getByText("Registered accounts")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
   await page.getByRole("link", { name: "Audit Logs" }).click();
   await expect(page.getByRole("table")).toContainText("ADMIN_PROVISIONED");
   await page.getByRole("link", { name: "System operations" }).click();
@@ -215,4 +226,22 @@ test("a development-provisioned admin can read the admin dashboard", async ({
   await expect(page.getByRole("table")).toContainText(
     "overlapping active bookings",
   );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("link", { name: "Dashboard", exact: true }),
+  ).toHaveAttribute("href", "/admin/dashboard");
+  const logout = page.getByRole("button", { name: "Log out" });
+  await expect(logout).toBeVisible();
+  const signedOut = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/auth/signout" &&
+      response.request().method() === "POST",
+  );
+  await logout.click();
+  expect((await signedOut).ok()).toBeTruthy();
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Log in" }),
+  ).toBeVisible();
+  expect((await page.request.get("/api/users/me")).status()).toBe(401);
 });

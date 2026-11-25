@@ -11,7 +11,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/branding/logo";
 import { AccountForm } from "@/components/forms/account-form";
 import { Logout } from "@/components/shared/logout";
-import { ThemeMenu } from "@/components/shared/theme-menu";
+import { ThemeToggle } from "@/components/shared/theme-menu";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -113,9 +113,12 @@ export async function Dashboard({
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
-      <div className="flex items-center justify-between gap-4 border-b border-border bg-surface px-4 py-3 lg:hidden">
+      <div className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-2 backdrop-blur lg:hidden">
         <Logo />
-        <ThemeMenu />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <Logout />
+        </div>
       </div>
       <DashboardNav
         role={role}
@@ -123,14 +126,17 @@ export async function Dashboard({
         allowed={staffSections}
       />
       <div className="min-w-0">
-        <header className="hidden h-[5.15rem] items-center justify-between gap-3 border-b border-border bg-surface px-8 lg:flex">
+        <header className="sticky top-0 z-30 hidden h-[4.5rem] items-center justify-between gap-3 border-b border-border bg-surface/95 px-8 backdrop-blur lg:flex">
           <span className="font-bold">{dashboardNames[role]}</span>
           <div className="flex items-center gap-3">
-            <ThemeMenu />
-            <Avatar name={profile.name} />
-            <span className="max-w-[15rem] truncate text-sm font-bold">
-              {profile.name}
-            </span>
+            <ThemeToggle />
+            <div className="flex min-w-0 items-center gap-2 border-l border-border pl-3">
+              <Avatar name={profile.name} />
+              <span className="max-w-[12rem] truncate text-sm font-bold">
+                {profile.name}
+              </span>
+            </div>
+            <Logout />
           </div>
         </header>
         <main
@@ -319,9 +325,6 @@ function AccountSettings({
             Changing your password signs you out on every device.
           </p>
           <AccountForm mode="change-password" />
-          <div className="mt-6 border-t border-border pt-5">
-            <Logout />
-          </div>
         </Card>
       )}
     </div>

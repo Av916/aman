@@ -9,7 +9,11 @@ export function Logout() {
   const [loading, setLoading] = useState(false);
   return (
     <Button
-      variant="outline"
+      type="button"
+      variant="ghost"
+      className="shrink-0 px-3"
+      aria-label={loading ? "Signing out…" : "Log out"}
+      title="Log out"
       disabled={loading}
       onClick={async () => {
         setLoading(true);
@@ -22,7 +26,9 @@ export function Logout() {
       }}
     >
       <LogOut size={16} aria-hidden="true" />
-      {loading ? "Signing out…" : "Log out"}
+      <span className="hidden sm:inline">
+        {loading ? "Signing out…" : "Log out"}
+      </span>
     </Button>
   );
 }

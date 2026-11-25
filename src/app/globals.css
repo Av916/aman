@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../";
 @source not "../generated";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --primary: #16845b;

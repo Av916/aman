@@ -19,9 +19,18 @@ import { authorizeGoogleAccount } from "@/modules/auth/oauth";
 import { authenticate } from "@/modules/auth/service";
 import { limitAttempt } from "@/modules/auth/rate-limit";
 import { AppError } from "./api";
+import { databaseConnectionErrorCode, errorCode } from "./database-errors";
 import { getEnv } from "./env";
+import { log } from "./log";
 import { getPrisma } from "./prisma";
 import { dashboardPath } from "@/config/navigation";
+
+const invalidSessionCodes = new Set([
+  "ERR_JWE_DECRYPTION_FAILED",
+  "ERR_JWE_INVALID",
+  "ERR_JWT_EXPIRED",
+  "ERR_JWT_INVALID",
+]);
 
 export function authOptions(request?: NextRequest): NextAuthOptions {
   const env = getEnv();
@@ -119,10 +128,17 @@ export function authOptions(request?: NextRequest): NextAuthOptions {
         return { sub: user.id, sessionVersion };
       },
       async session({ session, token }) {
-        const user =
-          token.sub && typeof token.sessionVersion === "number"
-            ? await findSessionUser(token.sub)
-            : null;
+        if (!token.sub || typeof token.sessionVersion !== "number")
+          return { expires: session.expires };
+        const user = await findSessionUser(token.sub).catch(
+          (error: unknown) => {
+            const code = databaseConnectionErrorCode(error);
+            if (!code) throw error;
+            // Deny access until the session can be validated without discarding its cookie.
+            log("warn", "auth.session_store_unavailable", { code });
+            return null;
+          },
+        );
         if (
           !user ||
           user.status !== "ACTIVE" ||
@@ -159,11 +175,24 @@ export function authOptions(request?: NextRequest): NextAuthOptions {
       },
     },
     logger: {
-      error(code) {
-        console.error("PitchMate auth error", { code });
+      error(code, metadata) {
+        const detail = errorCode(
+          metadata && typeof metadata === "object" && "error" in metadata
+            ? metadata.error
+            : metadata,
+        );
+        if (
+          code === "JWT_SESSION_ERROR" &&
+          detail &&
+          invalidSessionCodes.has(detail)
+        ) {
+          log("info", "auth.session_cookie_rejected", { code: detail });
+          return;
+        }
+        log("error", "auth.error", { code });
       },
       warn(code) {
-        console.warn("PitchMate auth warning", { code });
+        log("warn", "auth.warning", { code });
       },
     },
   };

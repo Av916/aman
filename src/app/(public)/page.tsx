@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   Building2,
   CalendarDays,
@@ -17,12 +18,14 @@ import { Logo } from "@/components/branding/logo";
 import { PublicNav } from "@/components/layouts/public-nav";
 import { TurfSearch } from "@/components/forms/turf-preview-search";
 import { listCities } from "@/modules/venues/public-http";
-import { discoverVenues } from "@/modules/venues/venue.repository";
-import { discoveryQuery } from "@/modules/venues/venue.validation";
+import { featuredVenues } from "@/modules/venues/venue.repository";
 import { VenueCard } from "@/components/venues/venue-card";
 import { currentUser } from "@/lib/auth";
+import { databaseConnectionErrorCode } from "@/lib/database-errors";
+import { log } from "@/lib/log";
 import { savedVenueIds } from "@/modules/favorites/service";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const steps = [
   {
@@ -67,13 +70,27 @@ const questions = [
   },
 ];
 
-export default async function HomePage() {
-  const [cities, featured, user] = await Promise.all([
-    listCities(),
-    discoverVenues(discoveryQuery.parse({ sort: "recent" })),
-    currentUser(),
-  ]);
-  const turfs = featured.venues.slice(0, 3);
+async function loadHomeData<T>(
+  event: string,
+  load: () => Promise<T>,
+): Promise<T | null> {
+  try {
+    return await load();
+  } catch (error) {
+    const code = databaseConnectionErrorCode(error);
+    if (!code) throw error;
+    log("warn", event, { code });
+    return null;
+  }
+}
+
+async function HomeSearch() {
+  const cities = await loadHomeData("home.cities_unavailable", listCities);
+  return <TurfSearch cities={cities ?? []} />;
+}
+
+async function loadFeaturedTurfs() {
+  const [turfs, user] = await Promise.all([featuredVenues(), currentUser()]);
   const saved =
     user?.role === "CUSTOMER"
       ? await savedVenueIds(
@@ -81,6 +98,50 @@ export default async function HomePage() {
           turfs.map((venue) => venue.id),
         )
       : [];
+  return { turfs, saved, role: user?.role };
+}
+
+async function FeaturedTurfs() {
+  const featured = await loadHomeData(
+    "home.featured_unavailable",
+    loadFeaturedTurfs,
+  );
+  if (!featured) {
+    return (
+      <p className="rounded-xl border border-border bg-surface p-5 text-muted">
+        Featured turfs are temporarily unavailable.{" "}
+        <Link
+          className="font-semibold underline underline-offset-4"
+          href="/turfs"
+        >
+          Browse all turfs
+        </Link>
+      </p>
+    );
+  }
+  const { turfs, saved, role } = featured;
+  if (!turfs.length) {
+    return (
+      <p className="rounded-xl border border-border bg-surface p-5 text-muted">
+        Published grounds will appear here.
+      </p>
+    );
+  }
+  return (
+    <div className="grid gap-5 md:grid-cols-3">
+      {turfs.map((venue) => (
+        <VenueCard
+          key={venue.id}
+          venue={venue}
+          role={role}
+          saved={saved.includes(venue.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function HomePage() {
   return (
     <>
       <PublicNav />
@@ -127,14 +188,16 @@ export default async function HomePage() {
 
         <div
           id="turf-search"
-          className="relative z-10 mx-auto -mt-10 max-w-[69rem] scroll-mt-6 px-5 sm:px-8"
+          className="relative z-10 mx-auto -mt-10 max-w-[69rem] scroll-mt-24 px-5 sm:px-8"
         >
-          <TurfSearch cities={cities} />
+          <Suspense fallback={<Skeleton className="h-44 bg-surface md:h-28" />}>
+            <HomeSearch />
+          </Suspense>
         </div>
 
         <section
           id="turfs"
-          className="mx-auto max-w-[80rem] scroll-mt-8 px-5 py-15 sm:px-8 sm:py-19 lg:px-10"
+          className="mx-auto max-w-[80rem] scroll-mt-24 px-5 py-15 sm:px-8 sm:py-19 lg:px-10"
         >
           <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -149,27 +212,23 @@ export default async function HomePage() {
               <Link href="/turfs">Explore all turfs</Link>
             </Button>
           </div>
-          {turfs.length ? (
-            <div className="grid gap-5 md:grid-cols-3">
-              {turfs.map((venue) => (
-                <VenueCard
-                  key={venue.id}
-                  venue={venue}
-                  role={user?.role}
-                  saved={saved.includes(venue.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-border bg-surface p-5 text-muted">
-              Published grounds will appear here.
-            </p>
-          )}
+          <Suspense
+            fallback={
+              <div className="grid gap-5 md:grid-cols-3" role="status">
+                <span className="sr-only">Loading featured turfs</span>
+                <Skeleton className="h-64" />
+                <Skeleton className="hidden h-64 md:block" />
+                <Skeleton className="hidden h-64 md:block" />
+              </div>
+            }
+          >
+            <FeaturedTurfs />
+          </Suspense>
         </section>
 
         <section
           id="how-it-works"
-          className="scroll-mt-4 border-y border-border bg-surface"
+          className="scroll-mt-18 border-y border-border bg-surface"
         >
           <div className="mx-auto max-w-[80rem] px-5 py-15 sm:px-8 lg:px-10">
             <h2 className="text-4xl font-extrabold tracking-[-.05em] sm:text-5xl">
@@ -235,7 +294,10 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section id="owners" className="on-dark bg-forest text-white">
+        <section
+          id="owners"
+          className="on-dark scroll-mt-18 bg-forest text-white"
+        >
           <div className="mx-auto grid max-w-[80rem] gap-10 px-5 py-15 sm:px-8 md:grid-cols-[1fr_.8fr] lg:px-10">
             <div>
               <p className="text-sm font-extrabold tracking-[.13em] text-accent uppercase">

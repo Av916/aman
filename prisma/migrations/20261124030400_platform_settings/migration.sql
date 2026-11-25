@@ -1,5 +1,0 @@
-CREATE TABLE "PlatformSetting" (
-  key TEXT PRIMARY KEY,
-  amount INTEGER NOT NULL CHECK (amount BETWEEN 0 AND 1000000),
-  "updatedAt" TIMESTAMPTZ(3) NOT NULL
-);

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Logo } from "@/components/branding/logo";
-import { ThemeMenu } from "@/components/shared/theme-menu";
+import { ThemeToggle } from "@/components/shared/theme-menu";
 import { Card } from "@/components/ui/card";
 
 export function AuthLayout({
@@ -19,7 +19,7 @@ export function AuthLayout({
       <div className="flex flex-col">
         <header className="flex h-[4.5rem] items-center justify-between gap-4 px-5 sm:px-8">
           <Logo />
-          <ThemeMenu />
+          <ThemeToggle />
         </header>
         <main
           id="main-content"

@@ -2,6 +2,16 @@ import type { Instrumentation } from "next";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    if (process.env.NODE_ENV === "development") {
+      const {
+        getDefaultAutoSelectFamilyAttemptTimeout,
+        setDefaultAutoSelectFamilyAttemptTimeout,
+      } = await import("node:net");
+      // Allow hosted database connections over higher-latency development links.
+      setDefaultAutoSelectFamilyAttemptTimeout(
+        Math.max(getDefaultAutoSelectFamilyAttemptTimeout(), 1_000),
+      );
+    }
     const { getEnv } = await import("./lib/env");
     const { venueSettings } = await import("./modules/venues/settings");
     const { validateDeployment } = await import("./lib/deployment");
@@ -24,10 +34,11 @@ export const onRequestError: Instrumentation.onRequestError = async (
   request,
   context,
 ) => {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { log } = await import("./lib/log");
-  log("error", "next.request_error", {
-    route: context.routePath,
-    method: request.method,
-  });
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { log } = await import("./lib/log");
+    log("error", "next.request_error", {
+      route: context.routePath,
+      method: request.method,
+    });
+  }
 };
