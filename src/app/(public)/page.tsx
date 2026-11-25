@@ -146,7 +146,7 @@ export default function HomePage() {
     <>
       <PublicNav />
       <main id="main-content">
-        <section className="on-dark relative isolate flex min-h-[31rem] items-center overflow-hidden bg-forest text-white sm:min-h-[36rem]">
+        <section className="on-dark relative isolate mx-auto flex min-h-[31rem] max-w-[92rem] items-center overflow-hidden bg-forest text-cream sm:mx-4 sm:mt-4 sm:min-h-[36rem] sm:rounded-[2rem] lg:mx-6 2xl:mx-auto">
           <Image
             src="/images/cricket-hero.webp"
             alt="Cricket players on an outdoor ground at dusk"
@@ -156,7 +156,7 @@ export default function HomePage() {
             sizes="100vw"
             className="-z-20 object-cover object-[62%_50%]"
           />
-          <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,#071d15e8_0%,#092319af_42%,#09231926_100%)]" />
+          <div className="absolute inset-0 -z-10 bg-linear-to-r from-forest from-5% via-forest/90 via-58% to-forest/30 md:via-forest/80 md:via-45% md:to-forest/10" />
           <div className="mx-auto w-full max-w-[80rem] px-5 pt-11 pb-21 sm:px-8 lg:px-10">
             <p className="mb-4 flex items-center gap-2 text-sm font-extrabold tracking-[.16em] text-accent uppercase">
               <Flag size={17} aria-hidden="true" /> Cricket turf booking
@@ -166,7 +166,7 @@ export default function HomePage() {
               <br />
               <span className="text-accent">Your Pitch.</span>
             </h1>
-            <p className="mt-5 max-w-[32rem] text-lg leading-relaxed text-white/90 sm:text-xl">
+            <p className="mt-5 max-w-[32rem] text-lg leading-relaxed text-cream sm:text-xl">
               From weekday nets to weekend matches, find the right ground for
               the cricket you play.
             </p>
@@ -178,7 +178,7 @@ export default function HomePage() {
                 asChild
                 variant="outline"
                 size="lg"
-                className="border-white/50 bg-forest/75 text-white hover:bg-forest"
+                className="border-cream/65 bg-forest/85 text-cream hover:bg-forest hover:text-cream"
               >
                 <Link href="/register-owner">List Your Turf</Link>
               </Button>
@@ -239,7 +239,10 @@ export default function HomePage() {
             </p>
             <div className="mt-8 grid gap-5 md:grid-cols-3">
               {steps.map(({ title, description, icon: Icon }) => (
-                <div key={title} className="rounded-2xl bg-background p-6">
+                <div
+                  key={title}
+                  className="rounded-2xl border border-sage/30 bg-background p-6"
+                >
                   <span className="mb-4 grid size-11 place-items-center rounded-xl bg-highlight text-brand-dot">
                     <Icon size={21} aria-hidden="true" />
                   </span>
@@ -296,7 +299,7 @@ export default function HomePage() {
 
         <section
           id="owners"
-          className="on-dark scroll-mt-18 bg-forest text-white"
+          className="on-dark mx-auto max-w-[92rem] scroll-mt-18 bg-forest text-cream sm:mx-4 sm:rounded-[2rem] lg:mx-6 2xl:mx-auto"
         >
           <div className="mx-auto grid max-w-[80rem] gap-10 px-5 py-15 sm:px-8 md:grid-cols-[1fr_.8fr] lg:px-10">
             <div>
@@ -306,7 +309,7 @@ export default function HomePage() {
               <h2 className="mt-2 text-4xl font-extrabold tracking-[-.05em] sm:text-5xl">
                 Give your ground a home.
               </h2>
-              <p className="mt-3 max-w-lg text-white/80">
+              <p className="mt-3 max-w-lg text-cream/90">
                 Create an owner account and submit your business details ahead
                 of live turf listings.
               </p>
@@ -314,7 +317,7 @@ export default function HomePage() {
                 <Link href="/register-owner">List Your Turf</Link>
               </Button>
             </div>
-            <ul className="grid content-center gap-4 font-semibold">
+            <ul className="grid content-center gap-4 rounded-2xl border border-sage/65 bg-sage/15 p-5 font-semibold sm:p-6">
               <li className="flex items-center gap-3">
                 <Building2 className="text-accent" size={22} /> Give players a
                 place to discover your facility

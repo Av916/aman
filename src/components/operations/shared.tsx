@@ -84,8 +84,8 @@ export function paymentBadge(row: {
 }
 
 const statusTone: Record<string, string> = {
-  CONFIRMED: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200",
-  COMPLETED: "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200",
+  CONFIRMED: "bg-highlight text-foreground",
+  COMPLETED: "bg-highlight text-foreground",
   PENDING_PAYMENT: "bg-amber-500/15 text-amber-900 dark:text-amber-100",
   HELD: "bg-amber-500/15 text-amber-900 dark:text-amber-100",
   CHECKED_IN: "bg-blue-500/15 text-blue-800 dark:text-blue-100",

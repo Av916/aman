@@ -43,8 +43,8 @@ export function VenueMap({
           if (content instanceof HTMLAnchorElement && point.href)
             content.href = point.href;
           L.circleMarker([point.latitude, point.longitude], {
-            color: "#106749",
-            fillColor: "#c9f36b",
+            color: "var(--palette-forest)",
+            fillColor: "var(--palette-sand)",
             fillOpacity: 0.95,
             radius: 9,
           })

@@ -6,7 +6,7 @@ export function TurfSearch({ cities }: { cities: { city: string }[] }) {
   return (
     <form
       action="/turfs"
-      className="grid gap-3 rounded-2xl border border-border bg-surface p-3 shadow-xl sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:p-4"
+      className="grid gap-3 rounded-2xl border border-sage/45 bg-surface p-3 shadow-xl shadow-forest/15 sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:p-4"
     >
       <label className="grid gap-1 rounded-xl bg-background p-2.5 text-sm font-bold">
         <span className="flex items-center gap-2">

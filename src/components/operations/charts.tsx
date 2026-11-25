@@ -55,7 +55,7 @@ export function LedgerCharts({
                 <Line
                   dataKey="collected"
                   name="Collected"
-                  stroke="#16845b"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                   dot={false}
                   isAnimationActive={false}
@@ -93,7 +93,7 @@ export function LedgerCharts({
                 <Bar
                   dataKey="rate"
                   name="Occupancy %"
-                  fill="#16845b"
+                  fill="var(--primary)"
                   radius={[5, 5, 0, 0]}
                   isAnimationActive={false}
                 />
@@ -125,7 +125,7 @@ export function LedgerCharts({
                 <Bar
                   dataKey="bookings"
                   name="Bookings"
-                  fill="#16845b"
+                  fill="var(--primary)"
                   isAnimationActive={false}
                 />
                 <Bar
@@ -163,7 +163,7 @@ export function LedgerCharts({
                 <Bar
                   dataKey="net"
                   name="Net collected in INR"
-                  fill="#16845b"
+                  fill="var(--primary)"
                   isAnimationActive={false}
                 />
               </BarChart>
@@ -189,7 +189,7 @@ export function LedgerCharts({
                 <Bar
                   dataKey="net"
                   name="Net collected in INR"
-                  fill="#16845b"
+                  fill="var(--primary)"
                   isAnimationActive={false}
                 />
               </BarChart>

@@ -10,7 +10,7 @@ export function Avatar({ name }: { name: string }) {
     .toUpperCase();
   return (
     <Primitive.Root
-      className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-900"
+      className="grid size-10 shrink-0 place-items-center rounded-full bg-highlight text-sm font-bold text-foreground"
       aria-hidden="true"
     >
       <Primitive.Fallback>{initials}</Primitive.Fallback>

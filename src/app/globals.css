@@ -4,34 +4,50 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --primary: #16845b;
-  --primary-strong: #106749;
-  --primary-dark: #102f25;
-  --accent: #c9f36b;
-  --background: #f7f8f4;
-  --foreground: #17211c;
-  --surface: #fff;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --control-border: #7f8c84;
-  --success: #16a34a;
-  --warning: #f59e0b;
-  --destructive: #dc2626;
-  --brand-dot: #16704f;
-  --highlight: #e9f4e6;
+  --palette-forest: #1e3b2f;
+  --palette-sage: #7f8c6a;
+  --palette-cream: #f5f0e6;
+  --palette-sand: #c8b48a;
+  --primary: var(--palette-forest);
+  --primary-strong: color-mix(in srgb, var(--palette-forest) 80%, black);
+  --on-primary: var(--palette-cream);
+  --accent: var(--palette-sand);
+  --accent-hover: color-mix(
+    in srgb,
+    var(--palette-sand) 72%,
+    var(--palette-cream)
+  );
+  --background: var(--palette-cream);
+  --foreground: var(--palette-forest);
+  --surface: color-mix(in srgb, var(--palette-cream) 52%, white);
+  --muted: color-mix(in srgb, var(--palette-forest) 67%, var(--palette-sage));
+  --border: color-mix(in srgb, var(--palette-sand) 46%, var(--palette-cream));
+  --control-border: var(--palette-sage);
+  --destructive: #b4232c;
+  --brand-dot: var(--muted);
+  --highlight: color-mix(
+    in srgb,
+    var(--palette-sage) 23%,
+    var(--palette-cream)
+  );
   color-scheme: light;
 }
 .dark {
-  --primary: #15714e;
-  --primary-strong: #106247;
-  --background: #101a15;
-  --foreground: #f3f6ef;
-  --surface: #16241c;
-  --muted: #b7c4bb;
-  --border: #33463a;
-  --control-border: #778d7d;
-  --brand-dot: #c9f36b;
-  --highlight: #21382a;
+  --primary: var(--palette-sand);
+  --primary-strong: var(--accent-hover);
+  --on-primary: var(--palette-forest);
+  --background: color-mix(in srgb, var(--palette-forest) 54%, black);
+  --foreground: var(--palette-cream);
+  --surface: color-mix(in srgb, var(--palette-forest) 80%, black);
+  --muted: color-mix(in srgb, var(--palette-cream) 64%, var(--palette-sage));
+  --border: color-mix(in srgb, var(--palette-sage) 40%, var(--palette-forest));
+  --control-border: var(--palette-sage);
+  --brand-dot: var(--palette-sand);
+  --highlight: color-mix(
+    in srgb,
+    var(--palette-sage) 23%,
+    var(--palette-forest)
+  );
   --destructive: #fca5a5;
   color-scheme: dark;
 }
@@ -40,8 +56,12 @@
   --font-heading: var(--font-manrope), Arial, sans-serif;
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
-  --color-forest: var(--primary-dark);
+  --color-on-primary: var(--on-primary);
+  --color-forest: var(--palette-forest);
+  --color-sage: var(--palette-sage);
+  --color-cream: var(--palette-cream);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
@@ -70,11 +90,11 @@ h3 {
   outline-offset: 3px;
 }
 .on-dark :focus-visible {
-  outline-color: #c9f36b;
+  outline-color: var(--palette-sand);
 }
 ::selection {
-  background: #c9f36b;
-  color: #102f25;
+  background: var(--palette-sand);
+  color: var(--palette-forest);
 }
 @media (prefers-reduced-motion: reduce) {
   *,

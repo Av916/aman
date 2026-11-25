@@ -25,7 +25,7 @@ export function AuthLayout({
           id="main-content"
           className="grid flex-1 place-items-center px-5 py-8 sm:px-8 lg:py-12"
         >
-          <Card className="w-full max-w-[29rem] px-5 py-7 shadow-sm sm:px-8 sm:py-8">
+          <Card className="w-full max-w-[29rem] border-sage/35 px-5 py-7 shadow-lg shadow-forest/5 sm:px-8 sm:py-8">
             <h1 className="text-3xl font-extrabold tracking-[-.05em] sm:text-4xl">
               {title}
             </h1>
@@ -39,7 +39,7 @@ export function AuthLayout({
           </Card>
         </main>
       </div>
-      <aside className="relative isolate hidden overflow-hidden bg-forest text-white lg:flex lg:items-end">
+      <aside className="relative isolate m-3 ml-0 hidden overflow-hidden rounded-[2rem] bg-forest text-cream lg:flex lg:items-end">
         <Image
           src="/images/cricket-hero.webp"
           alt=""
@@ -48,7 +48,7 @@ export function AuthLayout({
           sizes="48vw"
           className="-z-20 object-cover object-[73%_50%]"
         />
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,#071d15ee,transparent_62%)]" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-t from-forest via-forest/65 via-40% to-forest/10" />
         <p className="max-w-md p-10 font-heading text-5xl leading-none font-extrabold tracking-[-.055em] xl:p-14">
           Your Game.
           <br />
